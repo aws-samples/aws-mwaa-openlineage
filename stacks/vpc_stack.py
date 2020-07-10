@@ -4,7 +4,6 @@ from aws_cdk import (
     aws_ec2 as ec2,
     aws_s3 as s3,
     aws_iam as iam,
-    aws_dynamodb as dynamodb,
 )
 from scripts.custom_resource import CustomResource
 from scripts.constants import constants
@@ -17,7 +16,7 @@ dirname = Path(__file__).parent
 class VpcStack(core.Stack):
     """ create the vpc
         create an s3 vpc endpoint
-        create s3 buckets for scripts, data, and logs
+        create s3 buckets for scripts, data (raw, processed, serving), and logs
         create a custom function to empty the s3 buckets on destroy
     """
 
@@ -25,11 +24,11 @@ class VpcStack(core.Stack):
         super().__init__(scope, id, **kwargs)
 
         # create the vpc
-        self.emr_vpc = ec2.Vpc(self, "emr_vpc")
-        core.Tag.add(self.emr_vpc, "project", constants["PROJECT_TAG"])
+        self.dl_vpc = ec2.Vpc(self, "dl_vpc")
+        core.Tag.add(self.dl_vpc, "project", constants["PROJECT_TAG"])
 
         # add s3 endpoint
-        self.emr_vpc.add_gateway_endpoint(
+        self.dl_vpc.add_gateway_endpoint(
             "e6ad3311-f566-426e-8291-6937101db6a1",
             service=ec2.GatewayVpcEndpointAwsService.S3,
         )
@@ -46,17 +45,41 @@ class VpcStack(core.Stack):
         core.Tag.add(self.s3_bucket_scripts, "project", constants["PROJECT_TAG"])
         core.Tag.add(self.s3_bucket_scripts, "purpose", "SCRIPTS")
 
-        # create s3 bucket for data
-        self.s3_bucket_data = s3.Bucket(
+        # create s3 bucket for raw
+        self.s3_bucket_raw = s3.Bucket(
             self,
-            "s3_bucket_data",
+            "s3_bucket_raw",
             public_read_access=False,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             removal_policy=core.RemovalPolicy.DESTROY,
         )
         # tag the bucket
-        core.Tag.add(self.s3_bucket_data, "project", constants["PROJECT_TAG"])
-        core.Tag.add(self.s3_bucket_data, "purpose", "DATA")
+        core.Tag.add(self.s3_bucket_raw, "project", constants["PROJECT_TAG"])
+        core.Tag.add(self.s3_bucket_raw, "purpose", "RAW")
+
+        # create s3 bucket for processed
+        self.s3_bucket_processed = s3.Bucket(
+            self,
+            "s3_bucket_processed",
+            public_read_access=False,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            removal_policy=core.RemovalPolicy.DESTROY,
+        )
+        # tag the bucket
+        core.Tag.add(self.s3_bucket_processed, "project", constants["PROJECT_TAG"])
+        core.Tag.add(self.s3_bucket_processed, "purpose", "PROCESSED")
+
+        # create s3 bucket for serving
+        self.s3_bucket_serving = s3.Bucket(
+            self,
+            "s3_bucket_serving",
+            public_read_access=False,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            removal_policy=core.RemovalPolicy.DESTROY,
+        )
+        # tag the bucket
+        core.Tag.add(self.s3_bucket_serving, "project", constants["PROJECT_TAG"])
+        core.Tag.add(self.s3_bucket_serving, "purpose", "SERVING")
 
         # create s3 bucket for logs
         self.s3_bucket_logs = s3.Bucket(
@@ -80,7 +103,9 @@ class VpcStack(core.Stack):
                 actions=["s3:DeleteObject",],
                 resources=[
                     f"{self.s3_bucket_scripts.bucket_arn}/*",
-                    f"{self.s3_bucket_data.bucket_arn}/*",
+                    f"{self.s3_bucket_raw.bucket_arn}/*",
+                    f"{self.s3_bucket_processed.bucket_arn}/*",
+                    f"{self.s3_bucket_serving.bucket_arn}/*",
                     f"{self.s3_bucket_logs.bucket_arn}/*",
                 ],
             ),
@@ -96,61 +121,20 @@ class VpcStack(core.Stack):
             HandlerPath=str(dirname.parent.joinpath("scripts/s3_bucket_empty.py")),
             BucketNames=[
                 self.s3_bucket_scripts.bucket_name,
-                self.s3_bucket_data.bucket_name,
+                self.s3_bucket_raw.bucket_name,
+                self.s3_bucket_processed.bucket_name,
+                self.s3_bucket_serving.bucket_name,
                 self.s3_bucket_logs.bucket_name,
             ],
             ResourcePolicies=bucket_empty_policy,
         )
         # needs dependency to work in correct order
-        s3_bucket_empty.node.add_dependency(self.s3_bucket_data)
-        s3_bucket_empty.node.add_dependency(self.s3_bucket_logs)
         s3_bucket_empty.node.add_dependency(self.s3_bucket_scripts)
+        s3_bucket_empty.node.add_dependency(self.s3_bucket_raw)
+        s3_bucket_empty.node.add_dependency(self.s3_bucket_processed)
+        s3_bucket_empty.node.add_dependency(self.s3_bucket_serving)
+        s3_bucket_empty.node.add_dependency(self.s3_bucket_logs)
 
-        # emr job flow role
-        self.emr_jobflow_role = iam.Role(
-            self,
-            "emr_jobflow_role",
-            assumed_by=iam.ServicePrincipal("ec2.amazonaws.com"),
-            managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "service-role/AmazonElasticMapReduceforEC2Role"
-                )
-            ],
-        )
-        # emr job flow profile
-        self.emr_jobflow_profile = iam.CfnInstanceProfile(
-            self,
-            "emr_jobflow_profile",
-            roles=[self.emr_jobflow_role.role_name],
-            instance_profile_name=self.emr_jobflow_role.role_name,
-        )
-
-        # emr service role
-        self.emr_service_role = iam.Role(
-            self,
-            "emr_service_role",
-            assumed_by=iam.ServicePrincipal("elasticmapreduce.amazonaws.com"),
-            managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "service-role/AmazonElasticMapReduceRole"
-                )
-            ],
-            # inline_policies=[read_scripts_document],
-        )
-
-        # table for job specs
-        jobs_table = dynamodb.Table(
-            self,
-            "jobs_table",
-            partition_key=dynamodb.Attribute(
-                name="id", type=dynamodb.AttributeType.STRING
-            ),
-            sort_key=dynamodb.Attribute(
-                name="timestamp", type=dynamodb.AttributeType.NUMBER
-            ),
-            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
-            removal_policy=core.RemovalPolicy.DESTROY,
-        )
 
     # properties
     @property
@@ -158,8 +142,15 @@ class VpcStack(core.Stack):
         return self.s3_bucket_scripts
 
     @property
-    def get_s3_bucket_data(self):
-        return self.s3_bucket_data
+    def get_s3_bucket_raw(self):
+        return self.s3_bucket_raw
+
+    @property
+    def get_s3_bucket_processed(self):
+        return self.s3_bucket_processed
+    @property
+    def get_s3_bucket_serving(self):
+        return self.s3_bucket_serving
 
     @property
     def get_s3_bucket_logs(self):
@@ -167,26 +158,4 @@ class VpcStack(core.Stack):
 
     @property
     def get_vpc(self):
-        return self.emr_vpc
-
-    @property
-    def get_vpc_public_subnet_ids(self):
-        return self.emr_vpc.select_subnets(subnet_type=ec2.SubnetType.PUBLIC).subnet_ids
-
-    @property
-    def get_vpc_private_subnet_ids(self):
-        return self.emr_vpc.select_subnets(
-            subnet_type=ec2.SubnetType.PRIVATE
-        ).subnet_ids
-
-    @property
-    def get_emr_service_role(self):
-        return self.emr_service_role
-
-    @property
-    def get_emr_jobflow_role(self):
-        return self.emr_jobflow_role
-
-    @property
-    def get_emr_jobflow_profile(self):
-        return self.emr_jobflow_profile
+        return self.dl_vpc

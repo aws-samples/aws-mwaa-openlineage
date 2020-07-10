@@ -21,6 +21,7 @@ setuptools.setup(
         "aws_cdk.aws_dynamodb",
         "aws_cdk.aws_emr",
         "aws_cdk.aws_iam",
+        "aws_cdk.aws_lakeformation",
         "aws_cdk.aws_lambda",
         "aws_cdk.aws_logs",
         "aws_cdk.aws_s3",
