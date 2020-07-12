@@ -1,19 +1,10 @@
 # import modules
 from aws_cdk import (
     core,
-    aws_ec2 as ec2,
     aws_glue as glue,
     aws_iam as iam,
     aws_lakeformation as lf,
-    aws_s3 as s3,
 )
-from scripts.custom_resource import CustomResource
-from scripts.constants import constants
-from pathlib import Path
-
-# set path
-dirname = Path(__file__).parent
-
 
 class LfStack(core.Stack):
     """ create the lf admin
@@ -26,6 +17,11 @@ class LfStack(core.Stack):
 
         # create data lake administrator group
         lf_admin = iam.Role(self, "lf_admin", assumed_by=iam.AccountRootPrincipal(),)
+
+        # create the data lake user roles
+        lf_engineer = iam.Role(self, "lf_engineer", assumed_by=iam.AccountRootPrincipal(),)
+        lf_analyst = iam.Role(self, "lf_analyst", assumed_by=iam.AccountRootPrincipal(),)
+        lf_datascientist = iam.Role(self, "lf_datascientist", assumed_by=iam.AccountRootPrincipal(),)
 
         # create the lakeformation
         lf.CfnDataLakeSettings(

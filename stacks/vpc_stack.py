@@ -6,7 +6,6 @@ from aws_cdk import (
     aws_iam as iam,
 )
 from scripts.custom_resource import CustomResource
-from scripts.constants import constants
 from pathlib import Path
 
 # set path
@@ -20,7 +19,9 @@ class VpcStack(core.Stack):
         create a custom function to empty the s3 buckets on destroy
     """
 
-    def __init__(self, scope: core.Construct, id: str, **kwargs) -> None:
+    def __init__(
+        self, scope: core.Construct, id: str, constants: dict, **kwargs
+    ) -> None:
         super().__init__(scope, id, **kwargs)
 
         # create the vpc
@@ -135,7 +136,6 @@ class VpcStack(core.Stack):
         s3_bucket_empty.node.add_dependency(self.s3_bucket_serving)
         s3_bucket_empty.node.add_dependency(self.s3_bucket_logs)
 
-
     # properties
     @property
     def get_s3_bucket_scripts(self):
@@ -148,6 +148,7 @@ class VpcStack(core.Stack):
     @property
     def get_s3_bucket_processed(self):
         return self.s3_bucket_processed
+
     @property
     def get_s3_bucket_serving(self):
         return self.s3_bucket_serving

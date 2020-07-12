@@ -20,6 +20,8 @@ setuptools.setup(
         "aws_cdk.aws_cloudformation",
         "aws_cdk.aws_dynamodb",
         "aws_cdk.aws_emr",
+        "aws_cdk.aws_events",
+        "aws_cdk.aws_events_targets",
         "aws_cdk.aws_glue",
         "aws_cdk.aws_iam",
         "aws_cdk.aws_lakeformation",
