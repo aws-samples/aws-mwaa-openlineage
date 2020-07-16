@@ -1,5 +1,5 @@
 # import modules
-from aws_cdk import core, aws_glue as glue, aws_iam as iam
+from aws_cdk import core, aws_glue as glue, aws_iam as iam, aws_lakeformation as lf
 
 
 class GlueStack(core.Stack):
@@ -17,17 +17,11 @@ class GlueStack(core.Stack):
     ) -> None:
         super().__init__(scope, id, **kwargs)
 
-        crawler_s3_statement = iam.PolicyStatement(
-            effect=iam.Effect.ALLOW, actions=["s3:*",], resources=["*"],
-        )
-        crawler_document = iam.PolicyDocument()
-        crawler_document.add_statements(crawler_s3_statement)
         # crawler role
         crawler_role = iam.Role(
             self,
             "crawler_role",
             assumed_by=iam.ServicePrincipal("glue.amazonaws.com"),
-            inline_policies=[crawler_document],
             managed_policies=[
                 iam.ManagedPolicy.from_aws_managed_policy_name(
                     "service-role/AWSGlueServiceRole"
@@ -35,7 +29,21 @@ class GlueStack(core.Stack):
             ],
         )
 
-        # crawl the raw bucket
+        # lf permissions for the crawler role
+        lf.CfnPermissions(
+            self,
+            "crawler_role_permissions",
+            data_lake_principal=lf.CfnPermissions.DataLakePrincipalProperty(
+                data_lake_principal_identifier=crawler_role.role_arn
+            ),
+            resource=lf.CfnPermissions.ResourceProperty(
+                database_resource=lf.CfnPermissions.DatabaseResourceProperty(
+                    name=lf_stack.get_glue_database_raw.database_name
+                )
+            ),
+        )
+
+        # the raw bucket crawler
         crawler_raw = glue.CfnCrawler(
             self,
             "crawler_raw",
