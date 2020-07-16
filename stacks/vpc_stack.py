@@ -3,6 +3,7 @@ from aws_cdk import (
     core,
     aws_ec2 as ec2,
     aws_s3 as s3,
+    aws_s3_deployment as s3_deploy,
     aws_iam as iam,
 )
 from scripts.custom_resource import CustomResource
@@ -112,7 +113,17 @@ class VpcStack(core.Stack):
             ),
         ]
 
-        # create the custom resource to date scripts buckets
+        # deploy customer file to the raw bucket
+        xyz = s3_deploy.BucketDeployment(
+            self,
+            "xyz",
+            destination_bucket=self.s3_bucket_raw,
+            sources=[
+                s3_deploy.Source.asset("./scripts", exclude=["**", "!customer.tbl"])
+            ],
+        )
+
+        # create the custom resource to empty
         s3_bucket_empty = CustomResource(
             self,
             "s3_bucket_empty",

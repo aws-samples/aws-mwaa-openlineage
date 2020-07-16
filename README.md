@@ -45,3 +45,5 @@ Use the AWS CDK to deploy an Amazon VPC across multiple availability zones.
 
 Add this for tuning?
 https://aws.amazon.com/blogs/big-data/tune-hadoop-and-spark-performance-with-dr-elephant-and-sparklens-on-amazon-emr/
+
+Use Amazon Reviews as the standard dataset: https://s3.amazonaws.com/amazon-reviews-pds/readme.html
