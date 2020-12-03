@@ -8,9 +8,9 @@ from aws_cdk import (
 
 
 class LfStack(core.Stack):
-    """ create the lf admin
-        register the s3 buckets
-        create the databases
+    """create the lf admin
+    register the s3 buckets
+    create the databases
     """
 
     def __init__(
@@ -18,21 +18,34 @@ class LfStack(core.Stack):
     ) -> None:
         super().__init__(scope, id, **kwargs)
 
+        # add constants from context to output props
+        self.output_props = constants.copy()
+
         # create data lake administrator group
-        lf_admin = iam.Role(self, "lf_admin", assumed_by=iam.AccountRootPrincipal(),)
+        lf_admin = iam.Role(
+            self,
+            "lf_admin",
+            assumed_by=iam.AccountRootPrincipal(),
+        )
 
         # create the data lake user roles
         lf_engineer = iam.Role(
-            self, "lf_engineer", assumed_by=iam.AccountRootPrincipal(),
+            self,
+            "lf_engineer",
+            assumed_by=iam.AccountRootPrincipal(),
         )
         lf_analyst = iam.Role(
-            self, "lf_analyst", assumed_by=iam.AccountRootPrincipal(),
+            self,
+            "lf_analyst",
+            assumed_by=iam.AccountRootPrincipal(),
         )
         lf_datascientist = iam.Role(
-            self, "lf_datascientist", assumed_by=iam.AccountRootPrincipal(),
+            self,
+            "lf_datascientist",
+            assumed_by=iam.AccountRootPrincipal(),
         )
 
-        # create the lakeformation
+        # create the lakeformation admins
         lf.CfnDataLakeSettings(
             self,
             "lf_admins",
@@ -47,10 +60,19 @@ class LfStack(core.Stack):
         )
 
         # register the s3 buckets
+        # athena results bucket should not be registered with LF
+        lf.CfnResource(
+            self,
+            "s3_bucket_logs_register",
+            resource_arn=vpc_stack.output_props["s3_bucket_logs"].bucket_arn,
+            use_service_linked_role=True,
+            role_arn=lf_admin.role_arn,
+        )
+
         lf.CfnResource(
             self,
             "s3_bucket_raw_scripts",
-            resource_arn=vpc_stack.get_s3_bucket_scripts.bucket_arn,
+            resource_arn=vpc_stack.output_props["s3_bucket_scripts"].bucket_arn,
             use_service_linked_role=True,
             role_arn=lf_admin.role_arn,
         )
@@ -58,7 +80,7 @@ class LfStack(core.Stack):
         lf.CfnResource(
             self,
             "s3_bucket_raw_register",
-            resource_arn=vpc_stack.get_s3_bucket_raw.bucket_arn,
+            resource_arn=vpc_stack.output_props["s3_bucket_raw"].bucket_arn,
             use_service_linked_role=True,
             role_arn=lf_admin.role_arn,
         )
@@ -66,7 +88,7 @@ class LfStack(core.Stack):
         lf.CfnResource(
             self,
             "s3_bucket_processed_register",
-            resource_arn=vpc_stack.get_s3_bucket_processed.bucket_arn,
+            resource_arn=vpc_stack.output_props["s3_bucket_processed"].bucket_arn,
             use_service_linked_role=True,
             role_arn=lf_admin.role_arn,
         )
@@ -74,52 +96,39 @@ class LfStack(core.Stack):
         lf.CfnResource(
             self,
             "s3_bucket_serving_register",
-            resource_arn=vpc_stack.get_s3_bucket_serving.bucket_arn,
+            resource_arn=vpc_stack.output_props["s3_bucket_serving"].bucket_arn,
             use_service_linked_role=True,
             role_arn=lf_admin.role_arn,
         )
 
-        lf.CfnResource(
-            self,
-            "s3_bucket_logs_register",
-            resource_arn=vpc_stack.get_s3_bucket_logs.bucket_arn,
-            use_service_linked_role=True,
-            role_arn=lf_admin.role_arn,
-        )
 
         # create the databases
-        self.dl_db_raw = glue.Database(
+        dl_db_raw = glue.Database(
             self,
             "dl_db_raw",
             database_name="dl_raw",
-            location_uri=f"s3://{vpc_stack.get_s3_bucket_raw.bucket_name}",
+            location_uri=f"s3://{vpc_stack.output_props['s3_bucket_raw'].bucket_name}",
         )
 
-        self.dl_db_processed = glue.Database(
+        dl_db_processed = glue.Database(
             self,
             "dl_db_processed",
             database_name="dl_processed",
-            location_uri=f"s3://{vpc_stack.get_s3_bucket_processed.bucket_name}",
+            location_uri=f"s3://{vpc_stack.output_props['s3_bucket_processed'].bucket_name}",
         )
 
-        self.dl_db_serving = glue.Database(
+        dl_db_serving = glue.Database(
             self,
             "dl_db_serving",
             database_name="dl_serving",
-            location_uri=f"s3://{vpc_stack.get_s3_bucket_serving.bucket_name}",
+            location_uri=f"s3://{vpc_stack.output_props['s3_bucket_serving'].bucket_name}",
         )
 
-    # properties
-    @property
-    def get_glue_database_raw(self):
-        return self.dl_db_raw
+        self.output_props["dl_db_raw"] = dl_db_raw
+        self.output_props["dl_db_processed"] = dl_db_processed
+        self.output_props["dl_db_serving"] = dl_db_serving
 
     # properties
     @property
-    def get_glue_database_processed(self):
-        return self.dl_db_processed
-
-    # properties
-    @property
-    def get_glue_database_serving(self):
-        return self.dl_db_serving
+    def outputs(self):
+        return self.output_props

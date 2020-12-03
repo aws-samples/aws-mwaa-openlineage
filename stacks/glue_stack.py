@@ -17,7 +17,7 @@ class GlueStack(core.Stack):
     ) -> None:
         super().__init__(scope, id, **kwargs)
 
-        # crawler role
+        # glue crawler role
         crawler_role = iam.Role(
             self,
             "crawler_role",
@@ -28,7 +28,7 @@ class GlueStack(core.Stack):
                         iam.PolicyStatement(
                             effect=iam.Effect.ALLOW,
                             actions=["lakeformation:GetDataAccess"],
-                            resources=["*"],
+                            resources=[s3_bucket_raw.bucket_arn],
                         )
                     ]
                 )
@@ -39,6 +39,49 @@ class GlueStack(core.Stack):
                 ),
             ],
         )
+
+        # classifier
+        customer_classifier = glue.CfnClassifier(
+            self,
+            "customer_classifier",
+            csv_classifier=glue.CfnClassifier.CsvClassifierProperty(
+                delimiter="|",
+                header=[
+                    "c_custkey",
+                    "c_mktsegment",
+                    "c_nationkey",
+                    "c_name",
+                    "c_address",
+                    "c_phone",
+                    "c_acctbal",
+                    "c_comment",
+                ],
+                name="customer_tbl",
+            ),
+        )
+
+        # crawler role
+        #crawler_role = iam.Role(
+        #    self,
+        #    "crawler_role",
+        #    assumed_by=iam.ServicePrincipal("glue.amazonaws.com"),
+        #    inline_policies=[
+        #        iam.PolicyDocument(
+        #            statements=[
+        #                iam.PolicyStatement(
+        #                    effect=iam.Effect.ALLOW,
+        #                    actions=["lakeformation:GetDataAccess"],
+        #                    resources=["*"],
+        #                )
+        #            ]
+        #        )
+        #    ],
+        #    managed_policies=[
+        #        iam.ManagedPolicy.from_aws_managed_policy_name(
+        #            "service-role/AWSGlueServiceRole"
+        #        ),
+        #    ],
+        #)
 
         # lf database permissions for the crawler role
         lf.CfnPermissions(
@@ -71,23 +114,23 @@ class GlueStack(core.Stack):
         )
 
         # tpc-h customer classifier
-        customer_classifier = glue.CfnClassifier(
-            self,
-            "customer_classifier",
-            csv_classifier=glue.CfnClassifier.CsvClassifierProperty(
-                delimiter="|",
-                header=[
-                    "c_custkey",
-                    "c_mktsegment",
-                    "c_nationkey",
-                    "c_name",
-                    "c_address",
-                    "c_phone",
-                    "c_acctbal",
-                    "c_comment",
-                ],
-            ),
-        )
+        #customer_classifier = glue.CfnClassifier(
+        #    self,
+        #    "customer_classifier",
+        #    csv_classifier=glue.CfnClassifier.CsvClassifierProperty(
+        #        delimiter="|",
+        #        header=[
+        #            "c_custkey",
+        #            "c_mktsegment",
+        #            "c_nationkey",
+        #            "c_name",
+        #            "c_address",
+        #            "c_phone",
+        #            "c_acctbal",
+        #            "c_comment",
+        #        ],
+        #    ),
+        #)
 
         # the raw bucket crawler
         crawler_raw = glue.CfnCrawler(

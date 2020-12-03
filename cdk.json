@@ -2,7 +2,8 @@
   "app": "python app.py",
   "context": {
     "constants": {
-      "PROJECT_TAG": "aws-cdk-dl"
+      "PROJECT_TAG": "aws-cdk-dl",
+      "VPC_ID": "vpc-bdc68ec7"
     }
   }
 }

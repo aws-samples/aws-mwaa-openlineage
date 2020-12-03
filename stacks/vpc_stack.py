@@ -1,23 +1,29 @@
 # import modules
 from aws_cdk import (
     core,
+    aws_cloudtrail as cloudtrail,
     aws_ec2 as ec2,
     aws_s3 as s3,
     aws_s3_deployment as s3_deploy,
     aws_iam as iam,
+    aws_kinesisfirehose as firehose,
 )
 from scripts.custom_resource import CustomResource
 from pathlib import Path
 
 # set path
 dirname = Path(__file__).parent
+# aws_cdk.aws_kinesisfirehose.CfnDeliveryStream
 
 
 class VpcStack(core.Stack):
-    """ create the vpc
-        create an s3 vpc endpoint
-        create s3 buckets for scripts, data (raw, processed, serving), and logs
-        create a custom function to empty the s3 buckets on destroy
+    """create the vpc
+    create an s3 vpc endpoint
+    create an athena vpc endpoint
+    create s3 buckets for scripts, data (raw, processed, serving), athena, and logs
+    create cloudtrail for s3 bucket logging
+    create a custom function to empty the s3 buckets on destroy
+    deploy file from scripts directory into the raw bucket
     """
 
     def __init__(
@@ -25,99 +31,188 @@ class VpcStack(core.Stack):
     ) -> None:
         super().__init__(scope, id, **kwargs)
 
-        # create the vpc
-        self.dl_vpc = ec2.Vpc(self, "dl_vpc")
-        core.Tag.add(self.dl_vpc, "project", constants["PROJECT_TAG"])
+        # add constants from context to output props
+        self.output_props = constants.copy()
+
+        # import the vpc from context
+        try:
+            vpc = ec2.Vpc.from_lookup(self, "vpc", vpc_id=constants["VPC_ID"])
+        # if no vpc in context then create
+        except KeyError:
+            vpc = ec2.Vpc(self, "vpc", max_azs=3)
+        # tag the vpc
+        core.Tags.of(vpc).add("project", constants["PROJECT_TAG"])
+        self.output_props["vpc"] = vpc
 
         # add s3 endpoint
-        self.dl_vpc.add_gateway_endpoint(
+        vpc.add_gateway_endpoint(
             "e6ad3311-f566-426e-8291-6937101db6a1",
             service=ec2.GatewayVpcEndpointAwsService.S3,
         )
 
-        # create s3 bucket for scripts
-        self.s3_bucket_scripts = s3.Bucket(
-            self,
-            "s3_bucket_scripts",
-            public_read_access=False,
-            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
-            removal_policy=core.RemovalPolicy.DESTROY,
+        # add athena endpoint
+        vpc.add_interface_endpoint(
+            "athena_endpoint",
+            service=ec2.InterfaceVpcEndpointAwsService(name="athena"),
         )
-        # tag the bucket
-        core.Tag.add(self.s3_bucket_scripts, "project", constants["PROJECT_TAG"])
-        core.Tag.add(self.s3_bucket_scripts, "purpose", "SCRIPTS")
-
-        # create s3 bucket for raw
-        self.s3_bucket_raw = s3.Bucket(
-            self,
-            "s3_bucket_raw",
-            public_read_access=False,
-            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
-            removal_policy=core.RemovalPolicy.DESTROY,
-        )
-        # tag the bucket
-        core.Tag.add(self.s3_bucket_raw, "project", constants["PROJECT_TAG"])
-        core.Tag.add(self.s3_bucket_raw, "purpose", "RAW")
-
-        # create s3 bucket for processed
-        self.s3_bucket_processed = s3.Bucket(
-            self,
-            "s3_bucket_processed",
-            public_read_access=False,
-            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
-            removal_policy=core.RemovalPolicy.DESTROY,
-        )
-        # tag the bucket
-        core.Tag.add(self.s3_bucket_processed, "project", constants["PROJECT_TAG"])
-        core.Tag.add(self.s3_bucket_processed, "purpose", "PROCESSED")
-
-        # create s3 bucket for serving
-        self.s3_bucket_serving = s3.Bucket(
-            self,
-            "s3_bucket_serving",
-            public_read_access=False,
-            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
-            removal_policy=core.RemovalPolicy.DESTROY,
-        )
-        # tag the bucket
-        core.Tag.add(self.s3_bucket_serving, "project", constants["PROJECT_TAG"])
-        core.Tag.add(self.s3_bucket_serving, "purpose", "SERVING")
 
         # create s3 bucket for logs
-        self.s3_bucket_logs = s3.Bucket(
+        s3_bucket_logs = s3.Bucket(
             self,
             "s3_bucket_logs",
+            encryption=s3.BucketEncryption.S3_MANAGED,
             public_read_access=False,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             removal_policy=core.RemovalPolicy.DESTROY,
         )
         # tag the bucket
-        core.Tag.add(self.s3_bucket_logs, "project", constants["PROJECT_TAG"])
-        core.Tag.add(self.s3_bucket_logs, "purpose", "LOGS")
+        core.Tags.of(s3_bucket_logs).add("project", constants["PROJECT_TAG"])
+        core.Tags.of(s3_bucket_logs).add("purpose", "LOGS")
+
+        # create s3 bucket for scripts
+        s3_bucket_scripts = s3.Bucket(
+            self,
+            "s3_bucket_scripts",
+            encryption=s3.BucketEncryption.S3_MANAGED,
+            public_read_access=False,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            removal_policy=core.RemovalPolicy.DESTROY,
+            server_access_logs_bucket=s3_bucket_logs,
+        )
+        # tag the bucket
+        core.Tags.of(s3_bucket_scripts).add("project", constants["PROJECT_TAG"])
+        core.Tags.of(s3_bucket_scripts).add("purpose", "SCRIPTS")
+
+        # create s3 bucket for raw
+        s3_bucket_raw = s3.Bucket(
+            self,
+            "s3_bucket_raw",
+            encryption=s3.BucketEncryption.S3_MANAGED,
+            public_read_access=False,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            removal_policy=core.RemovalPolicy.DESTROY,
+            server_access_logs_bucket=s3_bucket_logs,
+        )
+        # tag the bucket
+        core.Tags.of(s3_bucket_raw).add("project", constants["PROJECT_TAG"])
+        core.Tags.of(s3_bucket_raw).add("purpose", "RAW")
+
+        # create s3 bucket for processed
+        s3_bucket_processed = s3.Bucket(
+            self,
+            "s3_bucket_processed",
+            encryption=s3.BucketEncryption.S3_MANAGED,
+            public_read_access=False,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            removal_policy=core.RemovalPolicy.DESTROY,
+            server_access_logs_bucket=s3_bucket_logs,
+        )
+        # tag the bucket
+        core.Tags.of(s3_bucket_processed).add("project", constants["PROJECT_TAG"])
+        core.Tags.of(s3_bucket_processed).add("purpose", "PROCESSED")
+
+        # create s3 bucket for serving
+        s3_bucket_serving = s3.Bucket(
+            self,
+            "s3_bucket_serving",
+            encryption=s3.BucketEncryption.S3_MANAGED,
+            public_read_access=False,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            removal_policy=core.RemovalPolicy.DESTROY,
+            server_access_logs_bucket=s3_bucket_logs,
+        )
+        # tag the bucket
+        core.Tags.of(s3_bucket_serving).add("project", constants["PROJECT_TAG"])
+        core.Tags.of(s3_bucket_serving).add("purpose", "SERVING")
+
+        # create s3 bucket for athena results
+        s3_bucket_athena = s3.Bucket(
+            self,
+            "s3_bucket_athena",
+            encryption=s3.BucketEncryption.S3_MANAGED,
+            public_read_access=False,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            removal_policy=core.RemovalPolicy.DESTROY,
+            server_access_logs_bucket=s3_bucket_logs,
+        )
+        core.Tags.of(s3_bucket_logs).add("project", constants["PROJECT_TAG"])
+        core.Tags.of(s3_bucket_logs).add("purpose", "ATHENA")
+
+        # cloudtrail for object logs
+        trail = cloudtrail.Trail(self, "dl_trail", bucket=s3_bucket_logs)
+        trail.add_s3_event_selector(
+            s3_selector=[
+                cloudtrail.S3EventSelector(bucket=s3_bucket_scripts),
+                cloudtrail.S3EventSelector(bucket=s3_bucket_raw),
+                cloudtrail.S3EventSelector(bucket=s3_bucket_processed),
+                cloudtrail.S3EventSelector(bucket=s3_bucket_serving),
+                cloudtrail.S3EventSelector(bucket=s3_bucket_athena),
+            ]
+        )
 
         # lambda policies
         bucket_empty_policy = [
             iam.PolicyStatement(
-                effect=iam.Effect.ALLOW, actions=["s3:ListBucket"], resources=["*"],
+                effect=iam.Effect.ALLOW,
+                actions=["s3:ListBucket"],
+                resources=["*"],
             ),
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
-                actions=["s3:DeleteObject",],
+                actions=[
+                    "s3:DeleteObject",
+                ],
                 resources=[
-                    f"{self.s3_bucket_scripts.bucket_arn}/*",
-                    f"{self.s3_bucket_raw.bucket_arn}/*",
-                    f"{self.s3_bucket_processed.bucket_arn}/*",
-                    f"{self.s3_bucket_serving.bucket_arn}/*",
-                    f"{self.s3_bucket_logs.bucket_arn}/*",
+                    f"{s3_bucket_logs.bucket_arn}/*",
+                    f"{s3_bucket_scripts.bucket_arn}/*",
+                    f"{s3_bucket_raw.bucket_arn}/*",
+                    f"{s3_bucket_processed.bucket_arn}/*",
+                    f"{s3_bucket_serving.bucket_arn}/*",
+                    f"{s3_bucket_athena.bucket_arn}/*",
                 ],
             ),
         ]
 
+        # policy for kinesis firehose
+        firehose_policy = iam.PolicyStatement()
+
+        # role for kinesis firehose
+        firehose_role = iam.Role(
+            self,
+            "firehose_role",
+            assumed_by=iam.ServicePrincipal("forehose.amazonaws.com"),
+            inline_policies=[
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=[
+                        "s3:AbortMultipartUpload",
+                        "s3:GetBucketLocation",
+                        "s3:GetObject",
+                        "s3:ListBucket",
+                        "s3:ListBucketMultipartUploads",
+                        "s3:PutObject",
+                    ],
+                    resources=["*"],
+                )
+            ],
+        )
+
+        # kinesis firehose to receive data
+        firehose_raw = firehose.CfnDeliveryStream(
+            self,
+            "firehose_raw",
+            s3_destination_configuration=(
+                firehose.CfnDeliveryStream.S3DestinationConfigurationProperty(
+                    bucket_arn=s3_bucket_raw.bucket_arn, role_arn=firehose_role.role_arn
+                )
+            ),
+        )
+
         # deploy customer file to the raw bucket
-        xyz = s3_deploy.BucketDeployment(
+        s3_deploy.BucketDeployment(
             self,
             "xyz",
-            destination_bucket=self.s3_bucket_raw,
+            destination_bucket=s3_bucket_raw,
             sources=[
                 s3_deploy.Source.asset("./scripts", exclude=["**", "!customer.tbl"])
             ],
@@ -132,42 +227,31 @@ class VpcStack(core.Stack):
             Uuid="f7d4f730-4ee1-11e8-9c2d-fa7ae01bbebc",
             HandlerPath=str(dirname.parent.joinpath("scripts/s3_bucket_empty.py")),
             BucketNames=[
-                self.s3_bucket_scripts.bucket_name,
-                self.s3_bucket_raw.bucket_name,
-                self.s3_bucket_processed.bucket_name,
-                self.s3_bucket_serving.bucket_name,
-                self.s3_bucket_logs.bucket_name,
+                s3_bucket_logs.bucket_name,
+                s3_bucket_scripts.bucket_name,
+                s3_bucket_raw.bucket_name,
+                s3_bucket_processed.bucket_name,
+                s3_bucket_serving.bucket_name,
             ],
             ResourcePolicies=bucket_empty_policy,
         )
         # needs dependency to work in correct order
-        s3_bucket_empty.node.add_dependency(self.s3_bucket_scripts)
-        s3_bucket_empty.node.add_dependency(self.s3_bucket_raw)
-        s3_bucket_empty.node.add_dependency(self.s3_bucket_processed)
-        s3_bucket_empty.node.add_dependency(self.s3_bucket_serving)
-        s3_bucket_empty.node.add_dependency(self.s3_bucket_logs)
+        s3_bucket_empty.node.add_dependency(s3_bucket_logs)
+        s3_bucket_empty.node.add_dependency(s3_bucket_scripts)
+        s3_bucket_empty.node.add_dependency(s3_bucket_raw)
+        s3_bucket_empty.node.add_dependency(s3_bucket_processed)
+        s3_bucket_empty.node.add_dependency(s3_bucket_serving)
+        s3_bucket_empty.node.add_dependency(s3_bucket_athena)
+
+        self.output_props["s3_bucket_logs"] = s3_bucket_logs
+        self.output_props["s3_bucket_scripts"] = s3_bucket_scripts
+        self.output_props["s3_bucket_raw"] = s3_bucket_raw
+        self.output_props["s3_bucket_processed"] = s3_bucket_processed
+        self.output_props["s3_bucket_serving"] = s3_bucket_serving
+        self.output_props["s3_bucket_athena"] = s3_bucket_athena
 
     # properties
-    @property
-    def get_s3_bucket_scripts(self):
-        return self.s3_bucket_scripts
 
     @property
-    def get_s3_bucket_raw(self):
-        return self.s3_bucket_raw
-
-    @property
-    def get_s3_bucket_processed(self):
-        return self.s3_bucket_processed
-
-    @property
-    def get_s3_bucket_serving(self):
-        return self.s3_bucket_serving
-
-    @property
-    def get_s3_bucket_logs(self):
-        return self.s3_bucket_logs
-
-    @property
-    def get_vpc(self):
-        return self.dl_vpc
+    def outputs(self):
+        return self.output_props

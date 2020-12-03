@@ -9,9 +9,9 @@ At a bash terminal session.
 
 ```bash
 # clone the repo
-git clone ssh://git.amazon.com/pkg/AwsCdkDatalake
+git clone git@ssh.gitlab.aws.dev:mcgregf/aws-cdk-datalake.git
 # move to directory
-cd AwsCdkDatalake
+cd aws-cdk-datalake
 # create the virtual environment
 python -m venv .env
 # download requirements
@@ -33,7 +33,7 @@ Create the CDK configuration by bootstrapping the CDK.
 -----
 ## Amazon Virtual Private Cloud
 
-Use the AWS CDK to deploy an Amazon VPC across multiple availability zones.
+Use the AWS CDK to deploy an Amazon VPC across multiple availability zones. If using an existing VPC then add the VPCID into the cdk.json file.
 
 ```bash
 # deploy the vpc stack
