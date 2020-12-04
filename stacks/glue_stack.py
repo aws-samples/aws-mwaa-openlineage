@@ -3,8 +3,7 @@ from aws_cdk import core, aws_glue as glue, aws_iam as iam, aws_lakeformation as
 
 
 class GlueStack(core.Stack):
-    """ create crawlers for the s3 buckets 
-    """
+    """create crawlers for the s3 buckets"""
 
     def __init__(
         self,
@@ -17,6 +16,9 @@ class GlueStack(core.Stack):
     ) -> None:
         super().__init__(scope, id, **kwargs)
 
+        # add constants from context to output props
+        self.output_props = constants.copy()
+
         # glue crawler role
         crawler_role = iam.Role(
             self,
@@ -28,10 +30,18 @@ class GlueStack(core.Stack):
                         iam.PolicyStatement(
                             effect=iam.Effect.ALLOW,
                             actions=["lakeformation:GetDataAccess"],
-                            resources=[s3_bucket_raw.bucket_arn],
-                        )
+                            resources=["*"],
+                        ),
+                        iam.PolicyStatement(
+                            effect=iam.Effect.ALLOW,
+                            actions=["s3:*"],
+                            resources=[
+                                vpc_stack.output_props["s3_bucket_raw"].bucket_arn,
+                                f"{vpc_stack.output_props['s3_bucket_raw'].bucket_arn}/*",
+                            ],
+                        ),
                     ]
-                )
+                ),
             ],
             managed_policies=[
                 iam.ManagedPolicy.from_aws_managed_policy_name(
@@ -39,49 +49,6 @@ class GlueStack(core.Stack):
                 ),
             ],
         )
-
-        # classifier
-        customer_classifier = glue.CfnClassifier(
-            self,
-            "customer_classifier",
-            csv_classifier=glue.CfnClassifier.CsvClassifierProperty(
-                delimiter="|",
-                header=[
-                    "c_custkey",
-                    "c_mktsegment",
-                    "c_nationkey",
-                    "c_name",
-                    "c_address",
-                    "c_phone",
-                    "c_acctbal",
-                    "c_comment",
-                ],
-                name="customer_tbl",
-            ),
-        )
-
-        # crawler role
-        #crawler_role = iam.Role(
-        #    self,
-        #    "crawler_role",
-        #    assumed_by=iam.ServicePrincipal("glue.amazonaws.com"),
-        #    inline_policies=[
-        #        iam.PolicyDocument(
-        #            statements=[
-        #                iam.PolicyStatement(
-        #                    effect=iam.Effect.ALLOW,
-        #                    actions=["lakeformation:GetDataAccess"],
-        #                    resources=["*"],
-        #                )
-        #            ]
-        #        )
-        #    ],
-        #    managed_policies=[
-        #        iam.ManagedPolicy.from_aws_managed_policy_name(
-        #            "service-role/AWSGlueServiceRole"
-        #        ),
-        #    ],
-        #)
 
         # lf database permissions for the crawler role
         lf.CfnPermissions(
@@ -92,7 +59,7 @@ class GlueStack(core.Stack):
             ),
             resource=lf.CfnPermissions.ResourceProperty(
                 database_resource=lf.CfnPermissions.DatabaseResourceProperty(
-                    name=lf_stack.get_glue_database_raw.database_name
+                    name=lf_stack.output_props["dl_db_raw"].database_name
                 )
             ),
             permissions=["ALTER", "CREATE_TABLE", "DROP"],
@@ -107,30 +74,11 @@ class GlueStack(core.Stack):
             ),
             resource=lf.CfnPermissions.ResourceProperty(
                 data_location_resource=lf.CfnPermissions.DataLocationResourceProperty(
-                    s3_resource=vpc_stack.get_s3_bucket_raw.bucket_arn
+                    s3_resource=vpc_stack.output_props["s3_bucket_raw"].bucket_arn
                 )
             ),
             permissions=["DATA_LOCATION_ACCESS"],
         )
-
-        # tpc-h customer classifier
-        #customer_classifier = glue.CfnClassifier(
-        #    self,
-        #    "customer_classifier",
-        #    csv_classifier=glue.CfnClassifier.CsvClassifierProperty(
-        #        delimiter="|",
-        #        header=[
-        #            "c_custkey",
-        #            "c_mktsegment",
-        #            "c_nationkey",
-        #            "c_name",
-        #            "c_address",
-        #            "c_phone",
-        #            "c_acctbal",
-        #            "c_comment",
-        #        ],
-        #    ),
-        #)
 
         # the raw bucket crawler
         crawler_raw = glue.CfnCrawler(
@@ -139,12 +87,27 @@ class GlueStack(core.Stack):
             targets=glue.CfnCrawler.TargetsProperty(
                 s3_targets=[
                     glue.CfnCrawler.S3TargetProperty(
-                        path=vpc_stack.s3_bucket_raw.bucket_name
+                        path=vpc_stack.output_props["s3_bucket_raw"].bucket_name
                     )
                 ],
             ),
             # classifiers=[customer_classifier.csv_classifier.name],
-            database_name=lf_stack.get_glue_database_raw.database_name,
+            database_name=lf_stack.output_props["dl_db_raw"].database_name,
             role=crawler_role.role_name,
         )
-        core.Tag.add(crawler_raw, "project", constants["PROJECT_TAG"])
+        core.Tags.of(crawler_raw).add("project", constants["PROJECT_TAG"])
+
+        # create processed table
+        firehose_processed_table = glue.Table(
+            self,
+            "firehose_processed_table",
+            columns=[glue.Column(name="tempcolumn", type=glue.Schema.DOUBLE)],
+            database=lf_stack.output_props["dl_db_processed"],
+            bucket=vpc_stack.output_props["s3_bucket_processed"],
+            s3_prefix="firehose_processed/",
+        )
+
+    # properties
+    @property
+    def outputs(self):
+        return self.output_props

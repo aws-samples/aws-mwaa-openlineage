@@ -227,9 +227,11 @@ class VpcStack(core.Stack):
                     buffering_hints=firehose.CfnDeliveryStream.BufferingHintsProperty(
                         interval_in_seconds=60, size_in_m_bs=1
                     ),
+                    prefix="firehose_raw/"
                 )
             ),
         )
+        core.Tags.of(firehose_raw).add("project", constants["PROJECT_TAG"])
 
         # deploy customer file to the raw bucket
         s3_deploy.BucketDeployment(
@@ -274,7 +276,6 @@ class VpcStack(core.Stack):
         self.output_props["s3_bucket_athena"] = s3_bucket_athena
 
     # properties
-
     @property
     def outputs(self):
         return self.output_props

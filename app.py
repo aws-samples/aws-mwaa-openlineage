@@ -24,13 +24,14 @@ vpc_stack = VpcStack(app, "dl-vpc", constants=constants, env=this_env)
 # Lf stack
 lf_stack = LfStack(app, "dl-lf", vpc_stack, constants=constants, env=this_env)
 
+# Glue stack
+glue_stack = GlueStack(
+    app, "dl-glue", vpc_stack, lf_stack, constants=constants, env=this_env
+)
+
 # Event stack
 #event_stack = EventStack(app, "dl-event", constants=constants, env=this_env)
 
-# Glue stack
-#glue_stack = GlueStack(
-#    app, "dl-glue", vpc_stack, lf_stack, constants=constants, env=this_env
-#)
 
 # synth the app
 app.synth()
