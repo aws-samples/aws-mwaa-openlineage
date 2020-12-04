@@ -96,16 +96,9 @@ class GlueStack(core.Stack):
             role=crawler_role.role_name,
         )
         core.Tags.of(crawler_raw).add("project", constants["PROJECT_TAG"])
-
-        # create processed table
-        firehose_processed_table = glue.Table(
-            self,
-            "firehose_processed_table",
-            columns=[glue.Column(name="tempcolumn", type=glue.Schema.DOUBLE)],
-            database=lf_stack.output_props["dl_db_processed"],
-            bucket=vpc_stack.output_props["s3_bucket_processed"],
-            s3_prefix="firehose_processed/",
-        )
+        
+        # create glue job for raw to processed
+        glue_job_processed = glue.CfnJob(self, "glue_job_processed", command=(scriptLocation=""))
 
     # properties
     @property
