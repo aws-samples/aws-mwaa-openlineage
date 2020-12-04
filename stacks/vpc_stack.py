@@ -6,6 +6,7 @@ from aws_cdk import (
     aws_s3 as s3,
     aws_s3_deployment as s3_deploy,
     aws_iam as iam,
+    aws_logs as logs,
     aws_kinesisfirehose as firehose,
 )
 from scripts.custom_resource import CustomResource
@@ -173,28 +174,41 @@ class VpcStack(core.Stack):
             ),
         ]
 
-        # policy for kinesis firehose
-        firehose_policy = iam.PolicyStatement()
+        # enable reading scripts from s3 bucket
+        firehose_s3_policy = iam.PolicyStatement(
+            effect=iam.Effect.ALLOW,
+            actions=[
+                "s3:AbortMultipartUpload",
+                "s3:GetBucketLocation",
+                "s3:GetObject",
+                "s3:ListBucket",
+                "s3:ListBucketMultipartUploads",
+                "s3:PutObject",
+            ],
+            resources=[s3_bucket_raw.bucket_arn, f"{s3_bucket_raw.bucket_arn}/*"],
+        )
+        firehose_policy_document = iam.PolicyDocument()
+        firehose_policy_document.add_statements(firehose_s3_policy)
 
         # role for kinesis firehose
         firehose_role = iam.Role(
             self,
             "firehose_role",
-            assumed_by=iam.ServicePrincipal("forehose.amazonaws.com"),
-            inline_policies=[
-                iam.PolicyStatement(
-                    effect=iam.Effect.ALLOW,
-                    actions=[
-                        "s3:AbortMultipartUpload",
-                        "s3:GetBucketLocation",
-                        "s3:GetObject",
-                        "s3:ListBucket",
-                        "s3:ListBucketMultipartUploads",
-                        "s3:PutObject",
-                    ],
-                    resources=["*"],
-                )
-            ],
+            assumed_by=iam.ServicePrincipal("firehose.amazonaws.com"),
+            inline_policies=[firehose_policy_document],
+        )
+
+        # firehose log group
+        firehose_log_group = logs.LogGroup(
+            self, "firehose_log_group", removal_policy=core.RemovalPolicy.DESTROY
+        )
+
+        # firehose log stream
+        firehose_log_stream = logs.LogStream(
+            self,
+            "firehose_log_stream",
+            removal_policy=core.RemovalPolicy.DESTROY,
+            log_group=firehose_log_group,
         )
 
         # kinesis firehose to receive data
@@ -203,7 +217,16 @@ class VpcStack(core.Stack):
             "firehose_raw",
             s3_destination_configuration=(
                 firehose.CfnDeliveryStream.S3DestinationConfigurationProperty(
-                    bucket_arn=s3_bucket_raw.bucket_arn, role_arn=firehose_role.role_arn
+                    bucket_arn=s3_bucket_raw.bucket_arn,
+                    role_arn=firehose_role.role_arn,
+                    cloud_watch_logging_options=firehose.CfnDeliveryStream.CloudWatchLoggingOptionsProperty(
+                        enabled=True,
+                        log_group_name=firehose_log_group.log_group_name,
+                        log_stream_name=firehose_log_stream.log_stream_name,
+                    ),
+                    buffering_hints=firehose.CfnDeliveryStream.BufferingHintsProperty(
+                        interval_in_seconds=60, size_in_m_bs=1
+                    ),
                 )
             ),
         )
