@@ -16,9 +16,6 @@ class GlueStack(core.Stack):
     ) -> None:
         super().__init__(scope, id, **kwargs)
 
-        # add constants from context to output props
-        self.output_props = constants.copy()
-
         # glue crawler role
         crawler_role = iam.Role(
             self,
@@ -98,7 +95,10 @@ class GlueStack(core.Stack):
         core.Tags.of(crawler_raw).add("project", constants["PROJECT_TAG"])
         
         # create glue job for raw to processed
-        glue_job_processed = glue.CfnJob(self, "glue_job_processed", command=(scriptLocation=""))
+        #glue_job_processed = glue.CfnJob(self, "glue_job_processed", command=(scriptLocation=""))
+
+        # output props
+        self.output_props = {}
 
     # properties
     @property

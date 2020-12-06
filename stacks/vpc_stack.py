@@ -21,7 +21,14 @@ class VpcStack(core.Stack):
     """create the vpc
     create an s3 vpc endpoint
     create an athena vpc endpoint
-    create s3 buckets for scripts, data (raw, processed, serving), athena, and logs
+    create s3 buckets
+        scripts
+        raw
+        processed
+        serving
+        athena
+        logs
+        mmwa
     create cloudtrail for s3 bucket logging
     create a custom function to empty the s3 buckets on destroy
     deploy file from scripts directory into the raw bucket
@@ -32,9 +39,6 @@ class VpcStack(core.Stack):
     ) -> None:
         super().__init__(scope, id, **kwargs)
 
-        # add constants from context to output props
-        self.output_props = constants.copy()
-
         # import the vpc from context
         try:
             vpc = ec2.Vpc.from_lookup(self, "vpc", vpc_id=constants["VPC_ID"])
@@ -43,7 +47,6 @@ class VpcStack(core.Stack):
             vpc = ec2.Vpc(self, "vpc", max_azs=3)
         # tag the vpc
         core.Tags.of(vpc).add("project", constants["PROJECT_TAG"])
-        self.output_props["vpc"] = vpc
 
         # add s3 endpoint
         vpc.add_gateway_endpoint(
@@ -117,6 +120,7 @@ class VpcStack(core.Stack):
             self,
             "s3_bucket_serving",
             encryption=s3.BucketEncryption.S3_MANAGED,
+            versioned=True,
             public_read_access=False,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             removal_policy=core.RemovalPolicy.DESTROY,
@@ -150,29 +154,6 @@ class VpcStack(core.Stack):
                 cloudtrail.S3EventSelector(bucket=s3_bucket_athena),
             ]
         )
-
-        # lambda policies
-        bucket_empty_policy = [
-            iam.PolicyStatement(
-                effect=iam.Effect.ALLOW,
-                actions=["s3:ListBucket"],
-                resources=["*"],
-            ),
-            iam.PolicyStatement(
-                effect=iam.Effect.ALLOW,
-                actions=[
-                    "s3:DeleteObject",
-                ],
-                resources=[
-                    f"{s3_bucket_logs.bucket_arn}/*",
-                    f"{s3_bucket_scripts.bucket_arn}/*",
-                    f"{s3_bucket_raw.bucket_arn}/*",
-                    f"{s3_bucket_processed.bucket_arn}/*",
-                    f"{s3_bucket_serving.bucket_arn}/*",
-                    f"{s3_bucket_athena.bucket_arn}/*",
-                ],
-            ),
-        ]
 
         # enable reading scripts from s3 bucket
         firehose_s3_policy = iam.PolicyStatement(
@@ -227,7 +208,7 @@ class VpcStack(core.Stack):
                     buffering_hints=firehose.CfnDeliveryStream.BufferingHintsProperty(
                         interval_in_seconds=60, size_in_m_bs=1
                     ),
-                    prefix="firehose_raw/"
+                    prefix="firehose_raw/",
                 )
             ),
         )
@@ -242,6 +223,30 @@ class VpcStack(core.Stack):
                 s3_deploy.Source.asset("./scripts", exclude=["**", "!customer.tbl"])
             ],
         )
+
+        # empty the s3 buckets for deletion ################################################
+        # lambda policies
+        bucket_empty_policy = [
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=["s3:ListBucket"],
+                resources=["*"],
+            ),
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "s3:DeleteObject",
+                ],
+                resources=[
+                    f"{s3_bucket_logs.bucket_arn}/*",
+                    f"{s3_bucket_scripts.bucket_arn}/*",
+                    f"{s3_bucket_raw.bucket_arn}/*",
+                    f"{s3_bucket_processed.bucket_arn}/*",
+                    f"{s3_bucket_serving.bucket_arn}/*",
+                    f"{s3_bucket_athena.bucket_arn}/*",
+                ],
+            ),
+        ]
 
         # create the custom resource to empty
         s3_bucket_empty = CustomResource(
@@ -268,6 +273,10 @@ class VpcStack(core.Stack):
         s3_bucket_empty.node.add_dependency(s3_bucket_serving)
         s3_bucket_empty.node.add_dependency(s3_bucket_athena)
 
+        # set output props
+        self.output_props = {}
+        self.output_props["vpc"] = vpc
+        self.output_props["trail"] = trail
         self.output_props["s3_bucket_logs"] = s3_bucket_logs
         self.output_props["s3_bucket_scripts"] = s3_bucket_scripts
         self.output_props["s3_bucket_raw"] = s3_bucket_raw
