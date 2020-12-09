@@ -8,7 +8,6 @@ from aws_cdk import core
 from stacks.vpc_stack import VpcStack
 from stacks.mwaa_stack import MwaaStack
 from stacks.lf_stack import LfStack
-from stacks.event_stack import EventStack
 from stacks.glue_stack import GlueStack
 
 app = core.App()

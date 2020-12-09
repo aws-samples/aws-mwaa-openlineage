@@ -93,13 +93,13 @@ class LfStack(core.Stack):
             role_arn=lf_admin.role_arn,
         )
 
-        lf.CfnResource(
-            self,
-            "s3_bucket_serving_register",
-            resource_arn=vpc_stack.output_props["s3_bucket_serving"].bucket_arn,
-            use_service_linked_role=True,
-            role_arn=lf_admin.role_arn,
-        )
+        #lf.CfnResource(
+        #    self,
+        #    "s3_bucket_serving_register",
+        #    resource_arn=vpc_stack.output_props["s3_bucket_serving"].bucket_arn,
+        #    use_service_linked_role=True,
+        #    role_arn=lf_admin.role_arn,
+        #)
 
 
         # create the databases
@@ -117,16 +117,16 @@ class LfStack(core.Stack):
             location_uri=f"s3://{vpc_stack.output_props['s3_bucket_processed'].bucket_name}",
         )
 
-        dl_db_serving = glue.Database(
-            self,
-            "dl_db_serving",
-            database_name="dl_serving",
-            location_uri=f"s3://{vpc_stack.output_props['s3_bucket_serving'].bucket_name}",
-        )
+        #dl_db_serving = glue.Database(
+        #    self,
+        #    "dl_db_serving",
+        #    database_name="dl_serving",
+        #    location_uri=f"s3://{vpc_stack.output_props['s3_bucket_serving'].bucket_name}",
+        #)
 
         self.output_props["dl_db_raw"] = dl_db_raw
         self.output_props["dl_db_processed"] = dl_db_processed
-        self.output_props["dl_db_serving"] = dl_db_serving
+        #self.output_props["dl_db_serving"] = dl_db_serving
 
     # properties
     @property

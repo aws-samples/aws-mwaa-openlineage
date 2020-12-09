@@ -13,9 +13,11 @@ class CustomResource(core.Construct):
     ) -> None:
         super().__init__(scope, id)
 
+        # set the lambda path
         with open(kwargs["HandlerPath"], encoding="utf-8") as fp:
             code_body = fp.read()
 
+        # custom resource
         resource = cfn.CustomResource(
             self,
             "Resource",

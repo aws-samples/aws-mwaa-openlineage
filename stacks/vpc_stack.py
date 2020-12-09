@@ -11,6 +11,7 @@ from aws_cdk import (
 )
 from scripts.custom_resource import CustomResource
 from pathlib import Path
+from scripts.s3bucketdelete import S3BucketDelete, S3BucketDeletable
 
 # set path
 dirname = Path(__file__).parent
@@ -116,19 +117,14 @@ class VpcStack(core.Stack):
         core.Tags.of(s3_bucket_processed).add("purpose", "PROCESSED")
 
         # create s3 bucket for serving
-        s3_bucket_serving = s3.Bucket(
-            self,
-            "s3_bucket_serving",
-            encryption=s3.BucketEncryption.S3_MANAGED,
-            versioned=True,
-            public_read_access=False,
-            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
-            removal_policy=core.RemovalPolicy.DESTROY,
-            server_access_logs_bucket=s3_bucket_logs,
-        )
-        # tag the bucket
-        core.Tags.of(s3_bucket_serving).add("project", constants["PROJECT_TAG"])
-        core.Tags.of(s3_bucket_serving).add("purpose", "SERVING")
+        # s3_bucket_serving = S3BucketDelete(
+        #    self,
+        #    "s3_bucket_serving",
+        #    project=constants["PROJECT_TAG"],
+        #    purpose="SERVING",
+        #    server_access_logs_bucket=s3_bucket_logs,
+        #    )
+        #s3_bucket_serving = S3BucketDeletable(self, "s3_bucket_serving")
 
         # create s3 bucket for athena results
         s3_bucket_athena = s3.Bucket(
@@ -140,8 +136,6 @@ class VpcStack(core.Stack):
             removal_policy=core.RemovalPolicy.DESTROY,
             server_access_logs_bucket=s3_bucket_logs,
         )
-        core.Tags.of(s3_bucket_logs).add("project", constants["PROJECT_TAG"])
-        core.Tags.of(s3_bucket_logs).add("purpose", "ATHENA")
 
         # cloudtrail for object logs
         trail = cloudtrail.Trail(self, "dl_trail", bucket=s3_bucket_logs)
@@ -150,7 +144,6 @@ class VpcStack(core.Stack):
                 cloudtrail.S3EventSelector(bucket=s3_bucket_scripts),
                 cloudtrail.S3EventSelector(bucket=s3_bucket_raw),
                 cloudtrail.S3EventSelector(bucket=s3_bucket_processed),
-                cloudtrail.S3EventSelector(bucket=s3_bucket_serving),
                 cloudtrail.S3EventSelector(bucket=s3_bucket_athena),
             ]
         )
@@ -242,7 +235,6 @@ class VpcStack(core.Stack):
                     f"{s3_bucket_scripts.bucket_arn}/*",
                     f"{s3_bucket_raw.bucket_arn}/*",
                     f"{s3_bucket_processed.bucket_arn}/*",
-                    f"{s3_bucket_serving.bucket_arn}/*",
                     f"{s3_bucket_athena.bucket_arn}/*",
                 ],
             ),
@@ -261,7 +253,7 @@ class VpcStack(core.Stack):
                 s3_bucket_scripts.bucket_name,
                 s3_bucket_raw.bucket_name,
                 s3_bucket_processed.bucket_name,
-                s3_bucket_serving.bucket_name,
+                s3_bucket_athena.bucket_name,
             ],
             ResourcePolicies=bucket_empty_policy,
         )
@@ -270,7 +262,6 @@ class VpcStack(core.Stack):
         s3_bucket_empty.node.add_dependency(s3_bucket_scripts)
         s3_bucket_empty.node.add_dependency(s3_bucket_raw)
         s3_bucket_empty.node.add_dependency(s3_bucket_processed)
-        s3_bucket_empty.node.add_dependency(s3_bucket_serving)
         s3_bucket_empty.node.add_dependency(s3_bucket_athena)
 
         # set output props
@@ -281,7 +272,7 @@ class VpcStack(core.Stack):
         self.output_props["s3_bucket_scripts"] = s3_bucket_scripts
         self.output_props["s3_bucket_raw"] = s3_bucket_raw
         self.output_props["s3_bucket_processed"] = s3_bucket_processed
-        self.output_props["s3_bucket_serving"] = s3_bucket_serving
+        # self.output_props["s3_bucket_serving"] = s3_bucket_serving.Bucket
         self.output_props["s3_bucket_athena"] = s3_bucket_athena
 
     # properties
