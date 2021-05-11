@@ -59,11 +59,19 @@ Use the AWS CDK to deploy an Amazon VPC across multiple availability zones. If u
 1. Build the Amazon MWAA Env
 
 -----
-## Amazon EMR
+## AWS Lake Formation
 
-Add this for tuning?
-https://aws.amazon.com/blogs/big-data/tune-hadoop-and-spark-performance-with-dr-elephant-and-sparklens-on-amazon-emr/
+1. Create administrators and lf roles
+1. Register the s3 bucket
+1. Create the databasese
 
-Use Amazon Reviews as the standard dataset: https://s3.amazonaws.com/amazon-reviews-pds/readme.html
+-----
+## AWS Glue
 
-f"arn:aws:iam::{core.Aws.ACCOUNT_ID}:role/Redshift-ML"
+1. Create the crawler role and crawler for the raw bucket
+
+-----
+## Next Steps
+1. Create Athena view against crawled table to demonstrate FGAC
+1. Create EMR job to be executed from MWAA using transient cluster to create parquet file in curated bucket
+1. etc.
