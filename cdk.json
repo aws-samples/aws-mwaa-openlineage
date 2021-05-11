@@ -2,7 +2,7 @@
   "app": "python app.py",
   "context": {
     "constants": {
-      "PROJECT_TAG": "aws-cdk-dl"
+      "PROJECT_TAG": "cdk-dl"
     }
   }
 }

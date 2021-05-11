@@ -9,8 +9,6 @@ class GlueStack(core.Stack):
         self,
         scope: core.Construct,
         id: str,
-        vpc_stack,
-        lf_stack,
         constants: dict = None,
         **kwargs,
     ) -> None:
@@ -33,8 +31,8 @@ class GlueStack(core.Stack):
                             effect=iam.Effect.ALLOW,
                             actions=["s3:*"],
                             resources=[
-                                vpc_stack.output_props["s3_bucket_raw"].bucket_arn,
-                                f"{vpc_stack.output_props['s3_bucket_raw'].bucket_arn}/*",
+                                constants["s3_bucket_raw"].bucket_arn,
+                                f"{constants['s3_bucket_raw'].bucket_arn}/*",
                             ],
                         ),
                     ]
@@ -56,7 +54,7 @@ class GlueStack(core.Stack):
             ),
             resource=lf.CfnPermissions.ResourceProperty(
                 database_resource=lf.CfnPermissions.DatabaseResourceProperty(
-                    name=lf_stack.output_props["dl_db_raw"].database_name
+                    name=constants["dl_db_raw"].database_name
                 )
             ),
             permissions=["ALTER", "CREATE_TABLE", "DROP"],
@@ -71,7 +69,7 @@ class GlueStack(core.Stack):
             ),
             resource=lf.CfnPermissions.ResourceProperty(
                 data_location_resource=lf.CfnPermissions.DataLocationResourceProperty(
-                    s3_resource=vpc_stack.output_props["s3_bucket_raw"].bucket_arn
+                    s3_resource=constants["s3_bucket_raw"].bucket_arn
                 )
             ),
             permissions=["DATA_LOCATION_ACCESS"],
@@ -84,12 +82,12 @@ class GlueStack(core.Stack):
             targets=glue.CfnCrawler.TargetsProperty(
                 s3_targets=[
                     glue.CfnCrawler.S3TargetProperty(
-                        path=vpc_stack.output_props["s3_bucket_raw"].bucket_name
+                        path=constants["s3_bucket_raw"].bucket_name
                     )
                 ],
             ),
             # classifiers=[customer_classifier.csv_classifier.name],
-            database_name=lf_stack.output_props["dl_db_raw"].database_name,
+            database_name=constants["dl_db_raw"].database_name,
             role=crawler_role.role_name,
         )
         core.Tags.of(crawler_raw).add("project", constants["PROJECT_TAG"])

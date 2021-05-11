@@ -15,6 +15,7 @@ cd aws-cdk-datalake
 # create the virtual environment
 python -m venv .env
 # download requirements
+# requirements definitions are in setup,py install_requires
 .env/bin/python -m pip install -r requirements.txt
 # activate the virtual environment
 source .env/bin/activate
@@ -39,18 +40,23 @@ Use the AWS CDK to deploy an Amazon VPC across multiple availability zones. If u
 # deploy the vpc stack
 (.env)$ cdk deploy elkk-vpc
 ```
-1. create the vpc
-1. create an s3 vpc endpoint
-1. create an athena vpc endpoint
+1. create the vpc (or use the existing vpc)
+1. create an s3 vpc endpoint for the vpc
+1. create an athena vpc endpoint for the vpc **
 1. create s3 bucket for scripts
 1. create s3 bucket for raw data
 1. create s3 bucket for processed data
-1. create s3 bucket for serving data
 1. create s3 bucket for athena results
 1. create s3 bucket for logs
 1. create cloudtrail for s3 bucket logging
 1. create a custom function to empty the s3 buckets on destroy
 1. deploy file from scripts directory into the raw bucket
+
+-----
+## Amazon Managed Workflows for Apache AirFlow
+
+1. Build the Amazon MWAA S3 bucket
+1. Build the Amazon MWAA Env
 
 -----
 ## Amazon EMR
@@ -59,3 +65,5 @@ Add this for tuning?
 https://aws.amazon.com/blogs/big-data/tune-hadoop-and-spark-performance-with-dr-elephant-and-sparklens-on-amazon-emr/
 
 Use Amazon Reviews as the standard dataset: https://s3.amazonaws.com/amazon-reviews-pds/readme.html
+
+f"arn:aws:iam::{core.Aws.ACCOUNT_ID}:role/Redshift-ML"
