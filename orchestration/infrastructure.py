@@ -1,6 +1,6 @@
 # import modules
 from aws_cdk import (
-    core,
+    core as cdk,
     aws_ec2 as ec2,
     aws_s3 as s3,
     aws_s3_deployment as s3_deploy,
@@ -9,22 +9,21 @@ from aws_cdk import (
     aws_mwaa as mwaa,
 )
 from pathlib import Path
-from bucket_cleaner.custom_resource import BucketCleaner
 
 # set path
 dirname = Path(__file__).parent
 
 
-class MwaaStack(core.Stack):
+class MWAA(cdk.Stack):
     """
     create s3 buckets for mwaa
     create mwaa env
     """
 
     def __init__(
-        self, scope: core.Construct, id: str, constants: dict, **kwargs
-    ) -> None:
-        super().__init__(scope, id, **kwargs)
+        self, scope: cdk.Construct, id: str, VPC=ec2.Vpc, MWAA_ENV_NAME: str = None
+    ):
+        super().__init__(scope, id)
 
         # create s3 bucket for mwaa
         s3_bucket_mwaa = s3.Bucket(
@@ -33,37 +32,38 @@ class MwaaStack(core.Stack):
             encryption=s3.BucketEncryption.S3_MANAGED,
             public_read_access=False,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
-            removal_policy=core.RemovalPolicy.DESTROY,
+            removal_policy=cdk.RemovalPolicy.DESTROY,
             auto_delete_objects=True,
+            versioned=True,
         )
         # tag the bucket
-        core.Tags.of(s3_bucket_mwaa).add("project", constants["PROJECT_TAG"])
-        core.Tags.of(s3_bucket_mwaa).add("purpose", "MWAA")
+        cdk.Tags.of(s3_bucket_mwaa).add("purpose", "MWAA")
 
         # deploy requirements.txt to mwaa bucket
-        s3_deploy.BucketDeployment(
+        airflow_files = s3_deploy.BucketDeployment(
             self,
             "deploy_requirements",
             destination_bucket=s3_bucket_mwaa,
             sources=[
-                s3_deploy.Source.asset("./scripts/dag_code/"),
+                s3_deploy.Source.asset("./orchestration/runtime/mwaa/"),
             ],
         )
-        
+
         # role for mwaa
         airflow_role = iam.Role(
             self,
             "airflow_role",
-            assumed_by=iam.ServicePrincipal("airflow-env.amazonaws.com"),
+            assumed_by=iam.CompositePrincipal(
+                iam.ServicePrincipal("airflow-env.amazonaws.com"),
+                iam.ServicePrincipal("airflow.amazonaws.com"),
+            ),
             inline_policies=[
                 iam.PolicyDocument(
                     statements=[
                         iam.PolicyStatement(
                             effect=iam.Effect.ALLOW,
                             actions=["airflow:PublishMetrics"],
-                            resources=[
-                                f'arn:aws:airflow:{core.Aws.REGION}:{core.Aws.ACCOUNT_ID}:environment/{constants["PROJECT_TAG"]}'
-                            ],
+                            resources=["*"],
                         ),
                         iam.PolicyStatement(
                             effect=iam.Effect.DENY,
@@ -98,9 +98,7 @@ class MwaaStack(core.Stack):
                                 "logs:GetQueryResults",
                                 "logs:DescribeLogGroups",
                             ],
-                            resources=[
-                                f"arn:aws:logs:{core.Aws.REGION}:{core.Aws.ACCOUNT_ID}:log-group:{constants['PROJECT_TAG']}-*"
-                            ],
+                            resources=["*"],
                         ),
                         iam.PolicyStatement(
                             effect=iam.Effect.ALLOW,
@@ -118,7 +116,7 @@ class MwaaStack(core.Stack):
                                 "sqs:SendMessage",
                             ],
                             resources=[
-                                f"arn:aws:sqs{core.Aws.REGION}:*:airflow-celery-*"
+                                f"arn:aws:sqs:{cdk.Aws.REGION}:*:airflow-celery-*"
                             ],
                         ),
                         iam.PolicyStatement(
@@ -129,13 +127,11 @@ class MwaaStack(core.Stack):
                                 "kms:GenerateDataKey*",
                                 "kms:Encrypt",
                             ],
-                            not_resources=[
-                                f"arn:aws:kms:*:{core.Aws.ACCOUNT_ID}:key/*"
-                            ],
+                            not_resources=[f"arn:aws:kms:*:{cdk.Aws.ACCOUNT_ID}:key/*"],
                             conditions={
                                 "StringLike": {
                                     "kms:ViaService": [
-                                        f"sqs.{core.Aws.REGION}.amazonaws.com"
+                                        f"sqs.{cdk.Aws.REGION}.amazonaws.com"
                                     ]
                                 }
                             },
@@ -146,7 +142,7 @@ class MwaaStack(core.Stack):
         )
 
         # mwaa security group
-        airflow_sg = ec2.SecurityGroup(self, "airflow_sg", vpc=constants["vpc"])
+        airflow_sg = ec2.SecurityGroup(self, "airflow_sg", vpc=VPC)
         # add access within group
         airflow_sg.connections.allow_from(
             airflow_sg,
@@ -155,36 +151,40 @@ class MwaaStack(core.Stack):
         )
 
         # add an airflow environment
-        airflow = mwaa.CfnEnvironment(
+        airflow_env = mwaa.CfnEnvironment(
             self,
-            "airflow",
-            name=constants["PROJECT_TAG"],
+            "airflow_env",
+            name=MWAA_ENV_NAME,
+            airflow_configuration_options={},
             dag_s3_path="dags",
-            # requirements_s3_path="requirements.txt",
+            requirements_s3_path="requirements.txt",
             # plugins_s3_path="plugins.zip",
             source_bucket_arn=s3_bucket_mwaa.bucket_arn,
             network_configuration=mwaa.CfnEnvironment.NetworkConfigurationProperty(
                 security_group_ids=[airflow_sg.security_group_id],
-                subnet_ids=constants["vpc"].select_subnets(
+                subnet_ids=VPC.select_subnets(
                     subnet_type=ec2.SubnetType.PRIVATE,
                 ).subnet_ids[:2],
             ),
             execution_role_arn=airflow_role.role_arn,
             max_workers=10,
             webserver_access_mode="PUBLIC_ONLY",
+            logging_configuration=mwaa.CfnEnvironment.LoggingConfigurationProperty(
+                webserver_logs={"enabled": True, "logLevel": "INFO"},
+                dag_processing_logs={"enabled": True, "logLevel": "INFO"},
+                scheduler_logs={"enabled": True, "logLevel": "INFO"},
+                worker_logs={"enabled": True, "logLevel": "INFO"},
+            ),
         )
-        # tag the mwaa
-        core.Tags.of(airflow).add("project", constants["PROJECT_TAG"])
+        # don't deploy until after requirements is done
+        airflow_env.node.add_dependency(airflow_files)
 
-        # cleaner action on delete
-        #s3_bucket_cleaner = BucketCleaner(
-        #    self,
-        #    "s3_bucket_cleaner",
-        #    buckets=[
-        #        s3_bucket_mwaa],
-        #    lambda_description=f"On delete empty {core.Stack.stack_name} S3 buckets",
-        #)
-        #s3_bucket_cleaner.node.add_dependency(s3_bucket_mwaa)
+        cdk.CfnOutput(
+            self,
+            "MWAAWebserverUrl",
+            value=f"https://{airflow_env.attr_webserver_url}/home",
+            export_name="mwaa-webserver-url",
+        )
 
         # set output props
         self.output_props = {}

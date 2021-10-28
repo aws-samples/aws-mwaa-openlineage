@@ -37,9 +37,10 @@ Create the CDK configuration by bootstrapping the CDK.
 Use the AWS CDK to deploy an Amazon VPC across multiple availability zones. If using an existing VPC then add the VPCID into the cdk.json file.
 
 ```bash
-# deploy the vpc stack
-(.env)$ cdk deploy elkk-vpc
+# deploy the storage stack
+cdk deploy cdkdl-dev/foundation/storage
 ```
+
 1. create the vpc (or use the existing vpc)
 1. create an s3 vpc endpoint for the vpc
 1. create an athena vpc endpoint for the vpc **
@@ -49,8 +50,24 @@ Use the AWS CDK to deploy an Amazon VPC across multiple availability zones. If u
 1. create s3 bucket for athena results
 1. create s3 bucket for logs
 1. create cloudtrail for s3 bucket logging
-1. create a custom function to empty the s3 buckets on destroy
 1. deploy file from scripts directory into the raw bucket
+
+-----
+## Marquez (open lineage)
+
+Deploy marquez into a docker container running on EC2 as a UI for lineage
+* docker-compose is not recognized by the CloudFormationInit which is stopping full automation here ...
+
+```bash
+# deploy the lineage stack
+cdk deploy cdkdl-dev/governance/lineage
+# connect to the marquez instance
+# ssh path is an output of the stack
+ssh -i "your_key_pair.pem" marquez_instance_public_dns
+# start marquez on the ec2 instance
+cd marquez
+./docker/up.sh
+```
 
 -----
 ## Amazon Managed Workflows for Apache AirFlow
@@ -77,3 +94,5 @@ Use the AWS CDK to deploy an Amazon VPC across multiple availability zones. If u
 1. etc.
 2. Split storage into its own stack, make a deployment a domain (vpc level)?
 3. add lf endpoint when it is released :/
+
+https://f11bff86-0f66-47b3-be91-4401f58aab47.c13.us-east-1.airflow.amazonaws.com

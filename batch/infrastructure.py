@@ -45,35 +45,37 @@ class GlueStack(core.Stack):
             ],
         )
 
-        # lf database permissions for the crawler role
-        lf.CfnPermissions(
-            self,
-            "crawler_role_db_permissions",
-            data_lake_principal=lf.CfnPermissions.DataLakePrincipalProperty(
-                data_lake_principal_identifier=crawler_role.role_arn
-            ),
-            resource=lf.CfnPermissions.ResourceProperty(
-                database_resource=lf.CfnPermissions.DatabaseResourceProperty(
-                    name=constants["dl_db_raw"].database_name
-                )
-            ),
-            permissions=["ALTER", "CREATE_TABLE", "DROP"],
-        )
+        # permisisons if lf
+        if constants["PERMISSIONS"] == "Lake Formation":
+            # lf database permissions for the crawler role
+            lf.CfnPermissions(
+                self,
+                "crawler_role_db_permissions",
+                data_lake_principal=lf.CfnPermissions.DataLakePrincipalProperty(
+                    data_lake_principal_identifier=crawler_role.role_arn
+                ),
+                resource=lf.CfnPermissions.ResourceProperty(
+                    database_resource=lf.CfnPermissions.DatabaseResourceProperty(
+                        name=constants["dl_db_raw"].database_name
+                    )
+                ),
+                permissions=["ALTER", "CREATE_TABLE", "DROP"],
+            )
 
-        # lf location permissions for the crawler role
-        lf.CfnPermissions(
-            self,
-            "crawler_role_loc_permissions",
-            data_lake_principal=lf.CfnPermissions.DataLakePrincipalProperty(
-                data_lake_principal_identifier=crawler_role.role_arn
-            ),
-            resource=lf.CfnPermissions.ResourceProperty(
-                data_location_resource=lf.CfnPermissions.DataLocationResourceProperty(
-                    s3_resource=constants["s3_bucket_raw"].bucket_arn
-                )
-            ),
-            permissions=["DATA_LOCATION_ACCESS"],
-        )
+            # lf location permissions for the crawler role
+            lf.CfnPermissions(
+                self,
+                "crawler_role_loc_permissions",
+                data_lake_principal=lf.CfnPermissions.DataLakePrincipalProperty(
+                    data_lake_principal_identifier=crawler_role.role_arn
+                ),
+                resource=lf.CfnPermissions.ResourceProperty(
+                    data_location_resource=lf.CfnPermissions.DataLocationResourceProperty(
+                        s3_resource=constants["s3_bucket_raw"].bucket_arn
+                    )
+                ),
+                permissions=["DATA_LOCATION_ACCESS"],
+            )
 
         # the raw bucket crawler
         crawler_raw = glue.CfnCrawler(
@@ -91,10 +93,11 @@ class GlueStack(core.Stack):
             role=crawler_role.role_name,
         )
         core.Tags.of(crawler_raw).add("project", constants["PROJECT_TAG"])
-        
-        # create glue job for raw to processed
-        #glue_job_processed = glue.CfnJob(self, "glue_job_processed", command=(scriptLocation=""))
 
+        # create glue job for raw to processed
+        glue_job_processed = glue.CfnJob(
+            self, "glue_job_processed"  # default_arguments={"--conf": "", "--conf": ""}
+        )
         # output props
         self.output_props = {}
 
