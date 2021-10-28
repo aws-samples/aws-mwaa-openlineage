@@ -1,6 +1,7 @@
 # import modules
 from aws_cdk import (
     core,
+    aws_ec2 as ec2,
     aws_glue as glue,
     aws_iam as iam,
     aws_lakeformation as lf,
@@ -17,6 +18,12 @@ class LfStack(core.Stack):
         self, scope: core.Construct, id: str, constants: dict, **kwargs
     ) -> None:
         super().__init__(scope, id, **kwargs)
+
+        # create the vpc endpoint for lake formation
+        constants["vpc"].add_interface_endpoint(
+            "lakeformation_endpoint",
+            service=ec2.InterfaceVpcEndpointAwsService(name="lakeformation"),
+        )
 
         # create data lake administrator group
         lf_admin = iam.Role(
@@ -51,7 +58,7 @@ class LfStack(core.Stack):
                     data_lake_principal_identifier=lf_admin.role_arn
                 ),
                 lf.CfnDataLakeSettings.DataLakePrincipalProperty(
-                    data_lake_principal_identifier=f"arn:aws:iam::{core.Aws.ACCOUNT_ID}:user/mcgregf-dev1"
+                    data_lake_principal_identifier=f"arn:aws:iam::{core.Aws.ACCOUNT_ID}:user/{constants['lf_admin_user']}"
                 ),
             ],
         )
@@ -97,7 +104,6 @@ class LfStack(core.Stack):
             use_service_linked_role=True,
             role_arn=lf_admin.role_arn,
         )
-
 
         # create the databases
         dl_db_raw = glue.Database(

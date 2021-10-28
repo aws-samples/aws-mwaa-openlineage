@@ -2,7 +2,8 @@
   "app": "python app.py",
   "context": {
     "constants": {
-      "PROJECT_TAG": "cdk-dl"
+      "PROJECT_TAG": "cdk-dl",
+      "lf_admin_user": "mcgregf-dev1"
     }
   }
 }

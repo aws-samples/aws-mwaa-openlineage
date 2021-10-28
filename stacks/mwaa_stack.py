@@ -34,6 +34,7 @@ class MwaaStack(core.Stack):
             public_read_access=False,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             removal_policy=core.RemovalPolicy.DESTROY,
+            auto_delete_objects=True,
         )
         # tag the bucket
         core.Tags.of(s3_bucket_mwaa).add("project", constants["PROJECT_TAG"])
@@ -176,14 +177,14 @@ class MwaaStack(core.Stack):
         core.Tags.of(airflow).add("project", constants["PROJECT_TAG"])
 
         # cleaner action on delete
-        s3_bucket_cleaner = BucketCleaner(
-            self,
-            "s3_bucket_cleaner",
-            buckets=[
-                s3_bucket_mwaa],
-            lambda_description=f"On delete empty {core.Stack.stack_name} S3 buckets",
-        )
-        s3_bucket_cleaner.node.add_dependency(s3_bucket_mwaa)
+        #s3_bucket_cleaner = BucketCleaner(
+        #    self,
+        #    "s3_bucket_cleaner",
+        #    buckets=[
+        #        s3_bucket_mwaa],
+        #    lambda_description=f"On delete empty {core.Stack.stack_name} S3 buckets",
+        #)
+        #s3_bucket_cleaner.node.add_dependency(s3_bucket_mwaa)
 
         # set output props
         self.output_props = {}

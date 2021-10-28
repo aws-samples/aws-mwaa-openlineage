@@ -63,7 +63,7 @@ Use the AWS CDK to deploy an Amazon VPC across multiple availability zones. If u
 
 1. Create administrators and lf roles
 1. Register the s3 bucket
-1. Create the databasese
+1. Create the databases
 
 -----
 ## AWS Glue
@@ -75,3 +75,5 @@ Use the AWS CDK to deploy an Amazon VPC across multiple availability zones. If u
 1. Create Athena view against crawled table to demonstrate FGAC
 1. Create EMR job to be executed from MWAA using transient cluster to create parquet file in curated bucket
 1. etc.
+2. Split storage into its own stack, make a deployment a domain (vpc level)?
+3. add lf endpoint when it is released :/

@@ -45,8 +45,8 @@ class VpcStack(core.Stack):
             "e6ad3311-f566-426e-8291-6937101db6a1",
             service=ec2.GatewayVpcEndpointAwsService.S3,
         )
+
         # add athena endpoint
-        # move to athena stack when built that
         vpc.add_interface_endpoint(
             "athena_endpoint",
             service=ec2.InterfaceVpcEndpointAwsService(name="athena"),
@@ -61,6 +61,7 @@ class VpcStack(core.Stack):
             public_read_access=False,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             removal_policy=core.RemovalPolicy.DESTROY,
+            auto_delete_objects=True,
         )
         core.Tags.of(s3_bucket_logs).add("project", constants["PROJECT_TAG"])
         core.Tags.of(s3_bucket_logs).add("purpose", "LOGS")
@@ -73,6 +74,7 @@ class VpcStack(core.Stack):
             public_read_access=False,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             removal_policy=core.RemovalPolicy.DESTROY,
+            auto_delete_objects=True,
             server_access_logs_bucket=s3_bucket_logs,
         )
         core.Tags.of(s3_bucket_scripts).add("project", constants["PROJECT_TAG"])
@@ -86,6 +88,7 @@ class VpcStack(core.Stack):
             public_read_access=False,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             removal_policy=core.RemovalPolicy.DESTROY,
+            auto_delete_objects=True,
             server_access_logs_bucket=s3_bucket_logs,
         )
         core.Tags.of(s3_bucket_raw).add("project", constants["PROJECT_TAG"])
@@ -99,6 +102,7 @@ class VpcStack(core.Stack):
             public_read_access=False,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             removal_policy=core.RemovalPolicy.DESTROY,
+            auto_delete_objects=True,
             server_access_logs_bucket=s3_bucket_logs,
         )
         core.Tags.of(s3_bucket_processed).add("project", constants["PROJECT_TAG"])
@@ -112,6 +116,7 @@ class VpcStack(core.Stack):
             public_read_access=False,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             removal_policy=core.RemovalPolicy.DESTROY,
+            auto_delete_objects=True,
             server_access_logs_bucket=s3_bucket_logs,
         )
         core.Tags.of(s3_bucket_serving).add("project", constants["PROJECT_TAG"])
@@ -125,6 +130,7 @@ class VpcStack(core.Stack):
             public_read_access=False,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             removal_policy=core.RemovalPolicy.DESTROY,
+            auto_delete_objects=True,
             server_access_logs_bucket=s3_bucket_logs,
         )
 
@@ -150,23 +156,23 @@ class VpcStack(core.Stack):
         )
 
         # cleaner action on delete
-        s3_bucket_cleaner = BucketCleaner(
-            self,
-            "s3_bucket_cleaner",
-            buckets=[
-                s3_bucket_logs,
-                s3_bucket_scripts,
-                s3_bucket_raw,
-                s3_bucket_processed,
-                s3_bucket_athena,
-            ],
-            lambda_description=f"On delete empty {core.Stack.stack_name} S3 buckets",
-        )
-        s3_bucket_cleaner.node.add_dependency(s3_bucket_logs)
-        s3_bucket_cleaner.node.add_dependency(s3_bucket_scripts)
-        s3_bucket_cleaner.node.add_dependency(s3_bucket_raw)
-        s3_bucket_cleaner.node.add_dependency(s3_bucket_processed)
-        s3_bucket_cleaner.node.add_dependency(s3_bucket_athena)
+        #s3_bucket_cleaner = BucketCleaner(
+        #    self,
+        #    "s3_bucket_cleaner",
+        #    buckets=[
+        #        s3_bucket_logs,
+        #        s3_bucket_scripts,
+        #        s3_bucket_raw,
+        #        s3_bucket_processed,
+        #        s3_bucket_athena,
+        #    ],
+        #    lambda_description=f"On delete empty {core.Stack.stack_name} S3 buckets",
+        #)
+        ##s3_bucket_cleaner.node.add_dependency(s3_bucket_logs)
+        #s3_bucket_cleaner.node.add_dependency(s3_bucket_scripts)
+        #s3_bucket_cleaner.node.add_dependency(s3_bucket_raw)
+        ##s3_bucket_cleaner.node.add_dependency(s3_bucket_processed)
+        #s3_bucket_cleaner.node.add_dependency(s3_bucket_athena)
 
         # set output props
         self.output_props = {}
