@@ -28,7 +28,7 @@ Create the CDK configuration by bootstrapping the CDK.
 
 ```bash
 # bootstrap the cdk
-(.env)$ cdk bootstrap aws://youraccount/yourregion
+npx cdk bootstrap aws://youraccount/yourregion
 ```
 
 -----
@@ -38,7 +38,7 @@ Use the AWS CDK to deploy an Amazon VPC across multiple availability zones. If u
 
 ```bash
 # deploy the storage stack
-cdk deploy cdkdl-dev/foundation/storage
+npx cdk deploy cdkdl-dev/foundation/storage
 ```
 
 1. create the vpc (or use the existing vpc)

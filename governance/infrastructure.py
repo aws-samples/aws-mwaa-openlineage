@@ -76,6 +76,7 @@ class Lineage(cdk.Stack):
                             ec2.InitCommand.shell_command("yum upgrade -y"),
                             ec2.InitCommand.shell_command("yum install -y awslogs"),
                             ec2.InitCommand.shell_command("systemctl start awslogsd"),
+                            ec2.InitCommand.shell_command("amazon-linux-extras install epel"),
                             # push logs to cloudwatch with agent
                             ec2.InitPackage.yum("amazon-cloudwatch-agent"),
                             # ec2.InitService.enable("amazon-cloudwatch-agent"),
@@ -93,17 +94,10 @@ class Lineage(cdk.Stack):
                                 "yum -y install python-pip",
                             ),
                             ec2.InitCommand.shell_command(
-                                "sudo -u ec2-user python3 -m pip install docker-compose",
+                                "python3 -m pip install docker-compose",
                             ),
                             ec2.InitCommand.shell_command(
-                                '''curl -L "https://github.com/docker/compose/releases/download/1.24.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose'''
-                            ),
-                            ec2.InitCommand.shell_command(
-                                '''curl -L "https://github.com/docker/compose/releases/download/1.24.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose'''
-                            ),
-                            # trust github - not secure for prod
-                            ec2.InitCommand.shell_command(
-                                "chmod +x /usr/local/bin/docker-compose"
+                                "ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose"
                             ),
                             # add ec2-user to docker group
                             ec2.InitCommand.shell_command(
@@ -115,9 +109,9 @@ class Lineage(cdk.Stack):
                     ),
                     "marquez": ec2.InitConfig(
                         [
-                            # check docker-compose
+                            # check docker-compose version
                             ec2.InitCommand.shell_command(
-                                "sudo -u ec2-user docker-compose",
+                                "sudo -u ec2-user docker-compose --version",
                                 ignore_errors=True,
                             ),
                             # clone marquez
@@ -127,7 +121,7 @@ class Lineage(cdk.Stack):
                             # start marquez
                             # start not working as docker compose not recognized?
                             ec2.InitCommand.shell_command(
-                                "sudo -u ec2-user ./docker/up.sh",
+                                "sudo -u ec2-user ./docker/up.sh --seed --detach",
                                 cwd="/home/ec2-user/marquez",
                                 ignore_errors=True,
                             ),
@@ -145,7 +139,7 @@ class Lineage(cdk.Stack):
         cdk.CfnOutput(
             self,
             "MarquezInstanceSSH",
-            value=f"ssh -i ~/Downloads/newKeyPair.pem {mq_instance.instance_public_dns_name}",
+            value=f"ssh -i ~/Downloads/newKeyPair.pem ec2-user@{mq_instance.instance_public_dns_name}",
             export_name="marquez-instance-ssh",
         )
         cdk.CfnOutput(
