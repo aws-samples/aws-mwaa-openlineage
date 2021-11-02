@@ -12,13 +12,14 @@ At a bash terminal session.
 git clone git@ssh.gitlab.aws.dev:mcgregf/aws-cdk-datalake.git
 # move to directory
 cd aws-cdk-datalake
-# create the virtual environment
+# create the virtual environment and install dependencies
 python -m venv .env
-# download requirements
-# requirements definitions are in setup,py install_requires
-.env/bin/python -m pip install -r requirements.txt
 # activate the virtual environment
 source .env/bin/activate
+# get pip tools
+.env/bin/python -m pip install pip-tools
+# run setup scripts
+./scripts/install-deps.sh
 ```
 
 -----
@@ -60,7 +61,7 @@ Deploy marquez into a docker container running on EC2 as a UI for lineage
 
 ```bash
 # deploy the lineage stack
-cdk deploy cdkdl-dev/governance/lineage
+npx cdk deploy cdkdl-dev/governance/lineage
 # connect to the marquez instance
 # ssh path is an output of the stack
 ssh -i "your_key_pair.pem" marquez_instance_public_dns
@@ -74,6 +75,27 @@ cd marquez
 
 1. Build the Amazon MWAA S3 bucket
 1. Build the Amazon MWAA Env
+
+Update the MWAA ENV VAR Plugin env_var_plugin.py
+SET os.environ["OPENLINEAGE_URL"] = <OPENLINEAGE_API>
+SET os.environ["OPENLINEAGE_NAMESPACE"] = <namespace>
+
+```bash
+# zip the plugins
+zip -r ./orchestration/runtime/mwaa/plugins.zip ./orchestration/runtime/mwaa/plugins/
+# deploy mwaa
+npx cdk deploy cdkdl-dev/orchestration/mwaa
+# check the requirements loaded correctly ...
+# check the plugins loaded correctly
+```
+
+-----
+## Amazon Athena
+
+```bash
+# deploy athena stakc
+npx cdk deploy cdkdl-dev/query/athena
+```
 
 -----
 ## AWS Lake Formation
@@ -92,7 +114,9 @@ cd marquez
 1. Create Athena view against crawled table to demonstrate FGAC
 1. Create EMR job to be executed from MWAA using transient cluster to create parquet file in curated bucket
 1. etc.
-2. Split storage into its own stack, make a deployment a domain (vpc level)?
-3. add lf endpoint when it is released :/
+5. Add location of plugin logs in cloudwatch
+6. Add curl from DAG to lineageapi
+7. Create athena catalog and link to main account
+8. Set Athena query location bucket with s3
 
 https://f11bff86-0f66-47b3-be91-4401f58aab47.c13.us-east-1.airflow.amazonaws.com

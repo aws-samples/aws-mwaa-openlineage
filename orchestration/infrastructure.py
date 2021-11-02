@@ -21,7 +21,16 @@ class MWAA(cdk.Stack):
     """
 
     def __init__(
-        self, scope: cdk.Construct, id: str, VPC=ec2.Vpc, MWAA_ENV_NAME: str = None
+        self,
+        scope: cdk.Construct,
+        id: str,
+        VPC=ec2.Vpc,
+        MWAA_ENV_NAME: str = None,
+        MWAA_ENV_CLASS: str = "mw1.small",
+        OPENLINEAGE_URL: str = None,
+        OPENLINEAGE_INSTANCE_SG: ec2.SecurityGroup = None,
+        MWAA_REQUIREMENTS_VERSION: str = None,
+        MWAA_PLUGINS_VERSION: str = None,
     ):
         super().__init__(scope, id)
 
@@ -39,6 +48,20 @@ class MWAA(cdk.Stack):
         # tag the bucket
         cdk.Tags.of(s3_bucket_mwaa).add("purpose", "MWAA")
 
+        # create vpc endpoints for mwaa
+        mwwa_api_endpoint = VPC.add_interface_endpoint(
+            "mwaa_api_endpoint",
+            service=ec2.InterfaceVpcEndpointAwsService(name="airflow.api"),
+        )
+        VPC.add_interface_endpoint(
+            "mwaa_env_endpoint",
+            service=ec2.InterfaceVpcEndpointAwsService(name="airflow.env"),
+        )
+        VPC.add_interface_endpoint(
+            "mwaa_ops_endpoint",
+            service=ec2.InterfaceVpcEndpointAwsService(name="airflow.ops"),
+        )
+
         # deploy requirements.txt to mwaa bucket
         airflow_files = s3_deploy.BucketDeployment(
             self,
@@ -47,6 +70,7 @@ class MWAA(cdk.Stack):
             sources=[
                 s3_deploy.Source.asset("./orchestration/runtime/mwaa/"),
             ],
+            exclude=["requirements.in", "plugins/*"],
         )
 
         # role for mwaa
@@ -76,10 +100,10 @@ class MWAA(cdk.Stack):
                         iam.PolicyStatement(
                             effect=iam.Effect.ALLOW,
                             actions=[
-                                "s3:GetObject",
+                                "s3:GetObject*",
+                                "s3:GetBucket*",
                                 "s3:List*",
-                                "s3:GetBucket",
-                                "s3:GetBucketPublicAccessBlock",
+                                # "s3:GetBucketPublicAccessBlock",
                             ],
                             resources=[
                                 s3_bucket_mwaa.bucket_arn,
@@ -142,23 +166,38 @@ class MWAA(cdk.Stack):
         )
 
         # mwaa security group
-        airflow_sg = ec2.SecurityGroup(self, "airflow_sg", vpc=VPC)
-        # add access within group
-        airflow_sg.connections.allow_from(
-            airflow_sg,
-            ec2.Port.all_traffic(),
-            "within mwaa",
+        airflow_sg = ec2.SecurityGroup(
+            self, "airflow_sg", vpc=VPC, description="MWAA sg"
         )
+        # add access within group
+        airflow_sg.connections.allow_internally(ec2.Port.all_traffic(), "within MWAA")
+
+        # add mwaa security groups to openlineage instance security group for ingress
+        #OPENLINEAGE_INSTANCE_SG.add_ingress_rule(
+        #    airflow_sg, ec2.Port(5000), "MWAA to OpenlineageAPI"
+        #)
+        # OPENLINEAGE_INSTANCE_SG.connections.allow_from(
+        #    airflow_sg, port_range=ec2.Port(5000), description="MWAA to OpenlineageAPI"
+        # )
 
         # add an airflow environment
         airflow_env = mwaa.CfnEnvironment(
             self,
             "airflow_env",
             name=MWAA_ENV_NAME,
-            airflow_configuration_options={},
+            environment_class=MWAA_ENV_CLASS,
+            airflow_configuration_options={
+                "core.load_default_connections": False,
+                "core.load_examples": False,
+                "webserver.dag_default_view": "tree",
+                "webserver.dag_orientation": "TB",
+                "core.lazy_load_plugins": False,
+            },
             dag_s3_path="dags",
+            plugins_s3_path="plugins.zip",
+            plugins_s3_object_version=MWAA_PLUGINS_VERSION,
             requirements_s3_path="requirements.txt",
-            # plugins_s3_path="plugins.zip",
+            requirements_s3_object_version=MWAA_REQUIREMENTS_VERSION,
             source_bucket_arn=s3_bucket_mwaa.bucket_arn,
             network_configuration=mwaa.CfnEnvironment.NetworkConfigurationProperty(
                 security_group_ids=[airflow_sg.security_group_id],
@@ -170,10 +209,11 @@ class MWAA(cdk.Stack):
             max_workers=10,
             webserver_access_mode="PUBLIC_ONLY",
             logging_configuration=mwaa.CfnEnvironment.LoggingConfigurationProperty(
-                webserver_logs={"enabled": True, "logLevel": "DEBUG"},
-                dag_processing_logs={"enabled": True, "logLevel": "DEBUG"},
-                scheduler_logs={"enabled": True, "logLevel": "DEBUG"},
-                worker_logs={"enabled": True, "logLevel": "DEBUG"},
+                task_logs={"enabled": True, "logLevel": "INFO"},
+                worker_logs={"enabled": True, "logLevel": "INFO"},
+                scheduler_logs={"enabled": True, "logLevel": "INFO"},
+                dag_processing_logs={"enabled": True, "logLevel": "INFO"},
+                webserver_logs={"enabled": True, "logLevel": "INFO"},
             ),
         )
         # don't deploy until after requirements is done

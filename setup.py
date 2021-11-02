@@ -8,14 +8,17 @@ with open("README.md") as fp:
 setuptools.setup(
     name="AwsCdkDatalake",
     version="0.0.1",
-    description="Build an Amazon S3 Data Lake",
+    description="Governed data lake",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    author="author",
-    package_dir={"": "stacks"},
-    packages=setuptools.find_packages(where="stacks"),
+    author="mcgregf",
+    package_dir={"AwsCdkDatalake": "."},
+    packages=setuptools.find_packages(
+        include=["batch", "foundation", "governance", "orchestration"]
+    ),
     install_requires=[
         "aws_cdk.core",
+        "aws_cdk.aws_athena",
         "aws_cdk.aws_cloudformation",
         "aws_cdk.aws_cloudtrail",
         "aws_cdk.aws_dynamodb",
@@ -32,11 +35,21 @@ setuptools.setup(
         "aws-cdk.aws_mwaa",
         "aws_cdk.aws_s3",
         "aws_cdk.aws_s3_deployment",
-        "awscli",
-        "black",
-        "boto3",
-        "pip==21.3.1",
     ],
+    extras_require={
+        "dev": [
+            "awscli",
+            "boto3",
+            "pip==21.3.1",
+            # for vscode
+            "black",
+            # for lineage
+            "openlineage-airflow",
+            "google-cloud-bigquery",
+            "great-expectations",
+            "requests",
+        ]
+    },
     python_requires=">=3.6",
     classifiers=[
         "Development Status :: 4 - Beta",

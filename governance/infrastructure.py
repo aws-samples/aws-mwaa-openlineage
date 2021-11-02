@@ -3,6 +3,7 @@ from aws_cdk import (
     core as cdk,
     aws_ec2 as ec2,
     aws_iam as iam,
+    aws_lakeformation as lf,
 )
 from pathlib import Path
 
@@ -30,7 +31,9 @@ class Lineage(cdk.Stack):
         super().__init__(scope, id)
 
         # marquez sg
-        mq_sg = ec2.SecurityGroup(self, "mq_sg", vpc=VPC)
+        mq_sg = ec2.SecurityGroup(
+            self, "mq_sg", vpc=VPC, description="Marquez instance sg"
+        )
 
         # Open port 22 for SSH
         for port in [22, 3000, 5000, 5001]:
@@ -76,7 +79,9 @@ class Lineage(cdk.Stack):
                             ec2.InitCommand.shell_command("yum upgrade -y"),
                             ec2.InitCommand.shell_command("yum install -y awslogs"),
                             ec2.InitCommand.shell_command("systemctl start awslogsd"),
-                            ec2.InitCommand.shell_command("amazon-linux-extras install epel"),
+                            ec2.InitCommand.shell_command(
+                                "amazon-linux-extras install epel"
+                            ),
                             # push logs to cloudwatch with agent
                             ec2.InitPackage.yum("amazon-cloudwatch-agent"),
                             # ec2.InitService.enable("amazon-cloudwatch-agent"),
@@ -135,6 +140,10 @@ class Lineage(cdk.Stack):
             },
         )
 
+        # attributes to share
+        self.MARQUEZ_URL = mq_instance.instance_public_dns_name
+        self.MARQUEZ_SG = mq_sg
+
         # create Outputs
         cdk.CfnOutput(
             self,
@@ -148,16 +157,47 @@ class Lineage(cdk.Stack):
             value=f"http://{mq_instance.instance_public_dns_name}:3000",
             export_name="marquez-instance-ui",
         )
+        cdk.CfnOutput(
+            self,
+            "OpenlineageApi",
+            value=f"http://{mq_instance.instance_public_dns_name}:5000",
+            export_name="openlineage-api",
+        )
 
-        # marquez address
-        self.MARQUEZ_URL = mq_instance.instance_public_dns_name
 
-        # set output props
-        self.output_props = {}
-        self.output_props["mq_instance"] = mq_instance
-        self.output_props["mq_public_dns"] = mq_instance.instance_public_dns_name
+class LakeFormation(cdk.Stack):
+    """
+    Create a lake formation admin
+    """
 
-    # properties
-    @property
-    def outputs(self):
-        return self.output_props
+    def __init__(
+        self, scope: cdk.Construct, id: str, *, VPC: ec2.Vpc, LF_ADMIN_USER: str = None
+    ):
+        super().__init__(scope, id)
+
+        # create the vpc endpoint for lake formation
+        VPC.add_interface_endpoint(
+            "lakeformation_endpoint",
+            service=ec2.InterfaceVpcEndpointAwsService(name="lakeformation"),
+        )
+
+        # create data lake administrator group
+        lf_admin = iam.Role(
+            self,
+            "lf_admin",
+            assumed_by=iam.AccountRootPrincipal(),
+        )
+
+        # create the lakeformation admins
+        lf.CfnDataLakeSettings(
+            self,
+            "lf_admins",
+            admins=[
+                lf.CfnDataLakeSettings.DataLakePrincipalProperty(
+                    data_lake_principal_identifier=lf_admin.role_arn
+                ),
+                lf.CfnDataLakeSettings.DataLakePrincipalProperty(
+                    data_lake_principal_identifier=LF_ADMIN_USER
+                ),
+            ],
+        )

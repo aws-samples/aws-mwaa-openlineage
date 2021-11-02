@@ -45,13 +45,6 @@ class Storage(core.Stack):
             service=ec2.GatewayVpcEndpointAwsService.S3,
         )
 
-        # add athena endpoint
-        #vpc.add_interface_endpoint(
-        #    "athena_endpoint",
-        #    service=ec2.InterfaceVpcEndpointAwsService(name="athena"),
-        #)
-
-        # create the s3 buckets for the data environment
         # create s3 bucket for logs
         s3_bucket_logs = s3.Bucket(
             self,
@@ -116,18 +109,6 @@ class Storage(core.Stack):
         )
         core.Tags.of(s3_bucket_serving).add("purpose", "SERVING")
 
-        # create s3 bucket for athena results
-        #s3_bucket_athena = s3.Bucket(
-        #    self,
-        #    "s3_bucket_athena",
-        #    encryption=s3.BucketEncryption.S3_MANAGED,
-        #    public_read_access=False,
-        #    block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
-        #    removal_policy=core.RemovalPolicy.DESTROY,
-        #    auto_delete_objects=True,
-        #    server_access_logs_bucket=s3_bucket_logs,
-        #)
-
         # cloudtrail for object logs
         trail = cloudtrail.Trail(self, "dl_trail", bucket=s3_bucket_logs)
         trail.add_s3_event_selector(
@@ -162,7 +143,6 @@ class Storage(core.Stack):
         self.output_props["s3_bucket_raw"] = s3_bucket_raw
         self.output_props["s3_bucket_processed"] = s3_bucket_processed
         self.output_props["s3_bucket_serving"] = s3_bucket_serving
-        #self.output_props["s3_bucket_athena"] = s3_bucket_athena
         self.output_props["EXTERNAL_IP"] = external_ip
 
     # properties
