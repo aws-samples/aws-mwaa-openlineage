@@ -15,18 +15,29 @@ print(resp.status_code)
 print(resp.reason)
 print(resp.content)
 
+namespace = "cdkdl-dev"
+dataset = "mydataset1"
+
 payload = {
-    "type": "S3",
-    "connectionUrl": "s3://cdkdl-dev-foundationstoragef3-s3bucketraw88473b86-rba84mz2wapn",
-    "description": "S3 RAW",
+    "type": "DB_TABLE",
+    "physicalName": "public.mytable",
+    "sourceName": "my-source",
+    "fields": [
+        {"name": "a", "type": "INTEGER"},
+        {"name": "b", "type": "TIMESTAMP"},
+        {"name": "c", "type": "INTEGER"},
+        {"name": "d", "type": "INTEGER"},
+    ],
+    "description": "My first dataset!",
 }
 
-resp = requests.post(
-    f"{url}/lineage",
-    data=payload,
+resp = requests.put(
+    f"{url}/namespaces/{namespace}/datasets/{dataset}",
+    json=payload,
     headers={"Content-Type": "application/json"},
     timeout=5,
 )
 
 print(resp.status_code)
 print(resp.reason)
+print(resp.content)

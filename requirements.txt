@@ -138,6 +138,7 @@ aws-cdk.aws-ec2==1.130.0
     #   aws-cdk.aws-kinesisfirehose
     #   aws-cdk.aws-lambda
     #   aws-cdk.aws-lambda-python
+    #   aws-cdk.aws-redshift
     #   aws-cdk.aws-route53
     #   aws-cdk.aws-route53-targets
     #   aws-cdk.aws-s3-deployment
@@ -241,6 +242,7 @@ aws-cdk.aws-iam==1.130.0
     #   aws-cdk.aws-kms
     #   aws-cdk.aws-lambda
     #   aws-cdk.aws-logs
+    #   aws-cdk.aws-redshift
     #   aws-cdk.aws-route53
     #   aws-cdk.aws-route53-targets
     #   aws-cdk.aws-s3
@@ -279,6 +281,7 @@ aws-cdk.aws-kms==1.130.0
     #   aws-cdk.aws-kinesisfirehose
     #   aws-cdk.aws-lambda
     #   aws-cdk.aws-logs
+    #   aws-cdk.aws-redshift
     #   aws-cdk.aws-s3
     #   aws-cdk.aws-s3-assets
     #   aws-cdk.aws-secretsmanager
@@ -306,6 +309,7 @@ aws-cdk.aws-lambda==1.130.0
     #   aws-cdk.aws-events-targets
     #   aws-cdk.aws-kinesisfirehose
     #   aws-cdk.aws-lambda-python
+    #   aws-cdk.aws-redshift
     #   aws-cdk.aws-s3-deployment
     #   aws-cdk.aws-secretsmanager
     #   aws-cdk.aws-sns-subscriptions
@@ -331,6 +335,8 @@ aws-cdk.aws-logs==1.130.0
     #   aws-cdk.aws-stepfunctions
     #   aws-cdk.custom-resources
 aws-cdk.aws-mwaa==1.130.0
+    # via AwsCdkDatalake (setup.py)
+aws-cdk.aws-redshift==1.130.0
     # via AwsCdkDatalake (setup.py)
 aws-cdk.aws-route53==1.130.0
     # via
@@ -358,6 +364,7 @@ aws-cdk.aws-s3==1.130.0
     #   aws-cdk.aws-glue
     #   aws-cdk.aws-kinesisfirehose
     #   aws-cdk.aws-lambda
+    #   aws-cdk.aws-redshift
     #   aws-cdk.aws-route53-targets
     #   aws-cdk.aws-s3-assets
     #   aws-cdk.aws-s3-deployment
@@ -380,8 +387,10 @@ aws-cdk.aws-sam==1.130.0
     # via aws-cdk.aws-secretsmanager
 aws-cdk.aws-secretsmanager==1.130.0
     # via
+    #   AwsCdkDatalake (setup.py)
     #   aws-cdk.aws-codebuild
     #   aws-cdk.aws-ecs
+    #   aws-cdk.aws-redshift
     #   aws-cdk.pipelines
 aws-cdk.aws-servicediscovery==1.130.0
     # via aws-cdk.aws-ecs
@@ -477,6 +486,7 @@ aws-cdk.core==1.130.0
     #   aws-cdk.aws-lambda-python
     #   aws-cdk.aws-logs
     #   aws-cdk.aws-mwaa
+    #   aws-cdk.aws-redshift
     #   aws-cdk.aws-route53
     #   aws-cdk.aws-route53-targets
     #   aws-cdk.aws-s3
@@ -501,6 +511,7 @@ aws-cdk.custom-resources==1.130.0
     #   aws-cdk.aws-dynamodb
     #   aws-cdk.aws-events-targets
     #   aws-cdk.aws-globalaccelerator
+    #   aws-cdk.aws-redshift
     #   aws-cdk.aws-route53
 aws-cdk.cx-api==1.130.0
     # via
@@ -612,6 +623,7 @@ constructs==3.3.161
     #   aws-cdk.aws-lambda
     #   aws-cdk.aws-lambda-python
     #   aws-cdk.aws-logs
+    #   aws-cdk.aws-redshift
     #   aws-cdk.aws-route53
     #   aws-cdk.aws-route53-targets
     #   aws-cdk.aws-s3
@@ -748,6 +760,7 @@ jsii==1.41.0
     #   aws-cdk.aws-lambda-python
     #   aws-cdk.aws-logs
     #   aws-cdk.aws-mwaa
+    #   aws-cdk.aws-redshift
     #   aws-cdk.aws-route53
     #   aws-cdk.aws-route53-targets
     #   aws-cdk.aws-s3
@@ -917,6 +930,7 @@ publication==0.0.3
     #   aws-cdk.aws-lambda-python
     #   aws-cdk.aws-logs
     #   aws-cdk.aws-mwaa
+    #   aws-cdk.aws-redshift
     #   aws-cdk.aws-route53
     #   aws-cdk.aws-route53-targets
     #   aws-cdk.aws-s3

@@ -70,7 +70,7 @@ class MWAA(cdk.Stack):
             sources=[
                 s3_deploy.Source.asset("./orchestration/runtime/mwaa/"),
             ],
-            exclude=["requirements.in", "plugins/*"],
+            include=["requirements.txt", "plugins.zip", "dags/*"],
         )
 
         # role for mwaa
@@ -103,7 +103,6 @@ class MWAA(cdk.Stack):
                                 "s3:GetObject*",
                                 "s3:GetBucket*",
                                 "s3:List*",
-                                # "s3:GetBucketPublicAccessBlock",
                             ],
                             resources=[
                                 s3_bucket_mwaa.bucket_arn,
@@ -173,12 +172,9 @@ class MWAA(cdk.Stack):
         airflow_sg.connections.allow_internally(ec2.Port.all_traffic(), "within MWAA")
 
         # add mwaa security groups to openlineage instance security group for ingress
-        #OPENLINEAGE_INSTANCE_SG.add_ingress_rule(
-        #    airflow_sg, ec2.Port(5000), "MWAA to OpenlineageAPI"
-        #)
-        # OPENLINEAGE_INSTANCE_SG.connections.allow_from(
-        #    airflow_sg, port_range=ec2.Port(5000), description="MWAA to OpenlineageAPI"
-        # )
+        OPENLINEAGE_INSTANCE_SG.connections.allow_from(
+            airflow_sg, ec2.Port.tcp(5000), "MWAA to Openlineage API"
+        )
 
         # add an airflow environment
         airflow_env = mwaa.CfnEnvironment(

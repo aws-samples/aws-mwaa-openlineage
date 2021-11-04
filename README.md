@@ -19,17 +19,9 @@ source .env/bin/activate
 # get pip tools
 .env/bin/python -m pip install pip-tools
 # run setup scripts
+# builds requirements.txt from setup.py and installs requirements
+# builds requirements.txt for each included requirements.in
 ./scripts/install-deps.sh
-```
-
------
-### Bootstrap the CDK
-
-Create the CDK configuration by bootstrapping the CDK.
-
-```bash
-# bootstrap the cdk
-npx cdk bootstrap aws://youraccount/yourregion
 ```
 
 -----
@@ -42,16 +34,12 @@ Use the AWS CDK to deploy an Amazon VPC across multiple availability zones. If u
 npx cdk deploy cdkdl-dev/foundation/storage
 ```
 
-1. create the vpc (or use the existing vpc)
+1. create the vpc
 1. create an s3 vpc endpoint for the vpc
-1. create an athena vpc endpoint for the vpc **
 1. create s3 bucket for scripts
 1. create s3 bucket for raw data
 1. create s3 bucket for processed data
-1. create s3 bucket for athena results
-1. create s3 bucket for logs
-1. create cloudtrail for s3 bucket logging
-1. deploy file from scripts directory into the raw bucket
+1. deploy data files from scripts directory into the raw bucket
 
 -----
 ## Marquez (open lineage)
@@ -68,6 +56,17 @@ ssh -i "your_key_pair.pem" marquez_instance_public_dns
 # start marquez on the ec2 instance
 cd marquez
 ./docker/up.sh
+```
+
+-----
+## Amazon Redshift
+
+1. Build the redshift cluster
+2. Create the cluster password in secrets manager
+
+```bash
+# deploy the redshift stack
+npx cdk deploy cdkdl-dev/query/redshift
 ```
 
 -----
@@ -118,5 +117,10 @@ npx cdk deploy cdkdl-dev/query/athena
 6. Add curl from DAG to lineageapi
 7. Create athena catalog and link to main account
 8. Set Athena query location bucket with s3
+9. Send EMR Spark job via AirFlow
+10. Send Redshift SQL job via AirFlow
+11. Send Glue crawler job via AirFlow
+12. Send Redshift copy job via AirFlow
+13. Create S3 sensor with AirFlow, and register data via lineage?
 
 https://f11bff86-0f66-47b3-be91-4401f58aab47.c13.us-east-1.airflow.amazonaws.com

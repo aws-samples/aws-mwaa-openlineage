@@ -32,9 +32,11 @@ setuptools.setup(
         "aws_cdk.aws_lambda_python",
         "aws_cdk.aws_logs",
         "aws_cdk.pipelines",
-        "aws-cdk.aws_mwaa",
+        "aws_cdk.aws_mwaa",
+        "aws_cdk.aws_redshift",
         "aws_cdk.aws_s3",
         "aws_cdk.aws_s3_deployment",
+        "aws_cdk.aws_secretsmanager",
     ],
     extras_require={
         "dev": [
