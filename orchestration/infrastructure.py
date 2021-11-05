@@ -7,6 +7,7 @@ from aws_cdk import (
     aws_iam as iam,
     aws_logs as logs,
     aws_mwaa as mwaa,
+    aws_secretsmanager as _sm,
 )
 from pathlib import Path
 
@@ -24,13 +25,14 @@ class MWAA(cdk.Stack):
         self,
         scope: cdk.Construct,
         id: str,
+        MWAA_ENV_NAME: str,
+        MWAA_ENV_CLASS: str,
+        OPENLINEAGE_SG: ec2.SecurityGroup,
+        REDSHIFT_SG: ec2.SecurityGroup,
+        MWAA_REQUIREMENTS_VERSION: str,
+        MWAA_PLUGINS_VERSION: str,
         VPC=ec2.Vpc,
-        MWAA_ENV_NAME: str = None,
-        MWAA_ENV_CLASS: str = "mw1.small",
-        OPENLINEAGE_URL: str = None,
-        OPENLINEAGE_INSTANCE_SG: ec2.SecurityGroup = None,
-        MWAA_REQUIREMENTS_VERSION: str = None,
-        MWAA_PLUGINS_VERSION: str = None,
+        MWAA_DEPLOY_FILES: bool = False,
     ):
         super().__init__(scope, id)
 
@@ -62,16 +64,17 @@ class MWAA(cdk.Stack):
             service=ec2.InterfaceVpcEndpointAwsService(name="airflow.ops"),
         )
 
-        # deploy requirements.txt to mwaa bucket
-        airflow_files = s3_deploy.BucketDeployment(
-            self,
-            "deploy_requirements",
-            destination_bucket=s3_bucket_mwaa,
-            sources=[
-                s3_deploy.Source.asset("./orchestration/runtime/mwaa/"),
-            ],
-            include=["requirements.txt", "plugins.zip", "dags/*"],
-        )
+        # deploy files to mwaa bucket
+        if MWAA_DEPLOY_FILES:
+            airflow_files = s3_deploy.BucketDeployment(
+                self,
+                "deploy_requirements",
+                destination_bucket=s3_bucket_mwaa,
+                sources=[
+                    s3_deploy.Source.asset("./orchestration/runtime/mwaa/"),
+                ],
+                include=["requirements.txt", "plugins.zip", "dags/*"],
+            )
 
         # role for mwaa
         airflow_role = iam.Role(
@@ -81,6 +84,11 @@ class MWAA(cdk.Stack):
                 iam.ServicePrincipal("airflow-env.amazonaws.com"),
                 iam.ServicePrincipal("airflow.amazonaws.com"),
             ),
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                   "SecretsManagerReadWrite"
+                )
+            ],
             inline_policies=[
                 iam.PolicyDocument(
                     statements=[
@@ -171,9 +179,13 @@ class MWAA(cdk.Stack):
         # add access within group
         airflow_sg.connections.allow_internally(ec2.Port.all_traffic(), "within MWAA")
 
-        # add mwaa security groups to openlineage instance security group for ingress
-        OPENLINEAGE_INSTANCE_SG.connections.allow_from(
-            airflow_sg, ec2.Port.tcp(5000), "MWAA to Openlineage API"
+        # add path to openlineage
+        OPENLINEAGE_SG.connections.allow_from(
+            airflow_sg, ec2.Port.tcp(5000), "MWAA to Openlineage"
+        )
+        # add path to redshift
+        REDSHIFT_SG.connections.allow_from(
+            airflow_sg, ec2.Port.tcp(5439), "MWAA to Redshift"
         )
 
         # add an airflow environment
@@ -188,6 +200,11 @@ class MWAA(cdk.Stack):
                 "webserver.dag_default_view": "tree",
                 "webserver.dag_orientation": "TB",
                 "core.lazy_load_plugins": False,
+                "secrets.backend": "airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend",
+                "secrets.backend_kwargs": {
+                    "connections_prefix": "airflow/connections",
+                    "variables_prefix": "airflow/variables",
+                },
             },
             dag_s3_path="dags",
             plugins_s3_path="plugins.zip",
@@ -213,7 +230,43 @@ class MWAA(cdk.Stack):
             ),
         )
         # don't deploy until after requirements is done
-        airflow_env.node.add_dependency(airflow_files)
+        if MWAA_DEPLOY_FILES:
+            airflow_env.node.add_dependency(airflow_files)
+
+        # create secrets for MWAA config
+        mwaa_secret_lineage_backend = _sm.Secret(
+            self,
+            "mwaa_secret_lineage_backend",
+            description="MWAA lineage backend",
+            secret_name="airflow/variables/AIRFLOW__LINEAGE__BACKEND",
+            # secret_value = "openlineage.lineage_backend.OpenLineageBackend"
+            removal_policy=cdk.RemovalPolicy.DESTROY,
+        )
+        mwaa_secret_openlineage_url = _sm.Secret(
+            self,
+            "mwaa_secret_openlineage_url",
+            description="Openlineage url",
+            secret_name="airflow/variables/OPENLINEAGE_URL",
+            # secret_value = "openlineage.lineage_backend.OpenLineageBackend"
+            removal_policy=cdk.RemovalPolicy.DESTROY,
+        )
+        mwaa_secret_openlineage_namespace = _sm.Secret(
+            self,
+            "mwaa_secret_openlineage_namespace",
+            description="Openlineage namespace",
+            secret_name="airflow/variables/OPENLINEAGE_NAMESPACE",
+            # secret_value = "openlineage.lineage_backend.OpenLineageBackend"
+            removal_policy=cdk.RemovalPolicy.DESTROY,
+        )
+
+        # create the connection string for MWAA to Redshift
+        mwaa_redshift_connection_string = _sm.Secret(
+            self,
+            "mwaa_redshift_connection_string",
+            description="MWAA Redshift Connection",
+            secret_name="airflow/connections/REDSHIFT_CONNECTOR",
+            removal_policy=cdk.RemovalPolicy.DESTROY,
+        )
 
         cdk.CfnOutput(
             self,
@@ -222,11 +275,3 @@ class MWAA(cdk.Stack):
             export_name="mwaa-webserver-url",
         )
 
-        # set output props
-        self.output_props = {}
-        self.output_props["s3_bucket_mwaa"] = s3_bucket_mwaa
-
-    # properties
-    @property
-    def outputs(self):
-        return self.output_props

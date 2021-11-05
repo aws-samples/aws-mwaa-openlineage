@@ -45,18 +45,23 @@ npx cdk deploy cdkdl-dev/foundation/storage
 ## Marquez (open lineage)
 
 Deploy marquez into a docker container running on EC2 as a UI for lineage
-* docker-compose is not recognized by the CloudFormationInit which is stopping full automation here ...
 
 ```bash
 # deploy the lineage stack
 npx cdk deploy cdkdl-dev/governance/lineage
-# connect to the marquez instance
-# ssh path is an output of the stack
-ssh -i "your_key_pair.pem" marquez_instance_public_dns
-# start marquez on the ec2 instance
-cd marquez
-./docker/up.sh
 ```
+
+Follow up actions:
+1. Connect to the openlineage UX at: Outputs > <MarquezUI>
+2. Create a secret in AWS Secrets Manager:
+    1. key = "airflow/variables/AIRFLOW__LINEAGE__BACKEND"
+    2. value = "openlineage.lineage_backend.OpenLineageBackend"
+3. Create a secret in AWS Secrets Manager:
+    1. key = "airflow/variables/OPENLINEAGE_URL"
+    2. value = <OpenlineageAPI>
+4. Create a secret in AWS Secrets Manager:
+    1. key = "airflow/variables/OPENLINEAGE_NAMESPACE"
+    2. value = "cdkdl-dev"
 
 -----
 ## Amazon Redshift
@@ -69,24 +74,42 @@ cd marquez
 npx cdk deploy cdkdl-dev/query/redshift
 ```
 
+Follow up actions:
+1. Build the MWAA Redshift connection string as:
+```python
+    connection_string = f"postgres://{login}:{password}@{host}:{port}/{schema}"
+```
+   1. RedshiftMasterPassword can be found in AWS Secrets Manager us "REDSHIFT_PASSWORD" 
+3. Create a secret in AWS Secrets Manager:
+    1. key = "airflow/connections/REDSHIFT_CONNECTOR"
+    2. value = <connection_string"
+
 -----
 ## Amazon Managed Workflows for Apache AirFlow
 
 1. Build the Amazon MWAA S3 bucket
 1. Build the Amazon MWAA Env
 
-Update the MWAA ENV VAR Plugin env_var_plugin.py
-SET os.environ["OPENLINEAGE_URL"] = <OPENLINEAGE_API>
-SET os.environ["OPENLINEAGE_NAMESPACE"] = <namespace>
+```bash
+# Update the MWAA ENV VAR Plugin env_var_plugin.py
+# SET os.environ["OPENLINEAGE_URL"] = <OPENLINEAGE_API>
+# SET os.environ["OPENLINEAGE_NAMESPACE"] = <namespace>
+```
 
 ```bash
-# zip the plugins
+# zip the plugins (if required)
 zip -r ./orchestration/runtime/mwaa/plugins.zip ./orchestration/runtime/mwaa/plugins/
 # deploy mwaa
 npx cdk deploy cdkdl-dev/orchestration/mwaa
 # check the requirements loaded correctly ...
 # check the plugins loaded correctly
 ```
+
+Follow up actions:
+1. Open MWAA UX: <MWAAWebserverUrl>
+2. Execute the "hello_world" DAG
+    1. Confirm the execution details appear in the openlineage UX
+2. Execute the "hello_postgres" DAG
 
 -----
 ## Amazon Athena
@@ -112,9 +135,6 @@ npx cdk deploy cdkdl-dev/query/athena
 ## Next Steps
 1. Create Athena view against crawled table to demonstrate FGAC
 1. Create EMR job to be executed from MWAA using transient cluster to create parquet file in curated bucket
-1. etc.
-5. Add location of plugin logs in cloudwatch
-6. Add curl from DAG to lineageapi
 7. Create athena catalog and link to main account
 8. Set Athena query location bucket with s3
 9. Send EMR Spark job via AirFlow
@@ -122,5 +142,7 @@ npx cdk deploy cdkdl-dev/query/athena
 11. Send Glue crawler job via AirFlow
 12. Send Redshift copy job via AirFlow
 13. Create S3 sensor with AirFlow, and register data via lineage?
+14. Move airflow env vars to secrets
+14. Create Redshift connection into secrets
 
 https://f11bff86-0f66-47b3-be91-4401f58aab47.c13.us-east-1.airflow.amazonaws.com

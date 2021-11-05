@@ -153,9 +153,9 @@ class Lineage(cdk.Stack):
         )
         cdk.CfnOutput(
             self,
-            "MarquezInstanceUI",
+            "MarquezUI",
             value=f"http://{mq_instance.instance_public_dns_name}:3000",
-            export_name="marquez-instance-ui",
+            export_name="marquez-ui",
         )
         cdk.CfnOutput(
             self,

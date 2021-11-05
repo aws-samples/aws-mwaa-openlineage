@@ -131,6 +131,7 @@ class Storage(core.Stack):
             ],
         )
 
+        # self ...
         self.VPC = vpc
         self.EXTERNAL_IP = external_ip
 

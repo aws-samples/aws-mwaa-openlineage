@@ -3,9 +3,6 @@ import logging
 from datetime import datetime
 import requests
 
-# plugin for env vars
-from env_var_plugin import EnvVarPlugin
-
 # replace airflow DAG with openlineage DAG
 # from airflow import DAG
 from openlineage.airflow.dag import DAG

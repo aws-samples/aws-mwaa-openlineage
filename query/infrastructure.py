@@ -39,14 +39,6 @@ class Athena(cdk.Stack):
             auto_delete_objects=True,
             #    server_access_logs_bucket=s3_bucket_logs,
         )
-        # athena data catalog
-        # athena_catalog = athena.CfnDataCatalog(
-        #    self,
-        #    "athena_catalog",
-        #    name=ATHENA_CATALOG_NAME,
-        #    type="GLUE",
-        #    parameters={"catalog-id", cdk.Aws.ACCOUNT_ID},
-        # )
 
 
 class Redshift(cdk.Stack):
@@ -56,28 +48,24 @@ class Redshift(cdk.Stack):
         self,
         scope: cdk.Construct,
         id: str,
+        REDSHIFT_DB_NAME: str,
+        REDSHIFT_NUM_NODES: str,
+        REDSHIFT_NODE_TYPE: str,
+        REDSHIFT_CLUSTER_TYPE: str,
+        REDSHIFT_MASTER_USERNAME: str,
         VPC=ec2.Vpc,
-        REDSHIFT_DB_NAME: str = None,
-        REDSHIFT_NUM_NODES: str = None,
-        REDSHIFT_NODE_TYPE: str = None,
-        REDSHIFT_CLUSTER_TYPE: str = None,
-        REDSHIFT_MASTER_USERNAME: str = None,
     ):
         super().__init__(scope, id)
 
         redshift_sg = ec2.SecurityGroup(
             self, "redshift_sg", vpc=VPC, description="Redshift sg"
         )
-        # add group access
-        #redshift_sg.connections.allow_from(
-        #    airflow_sg, ec2.Port.tcp(5000), "MWAA to Openlineage API"
-        #)
 
-        redshift_cluster_secret = _sm.Secret(
+        redshift_password = _sm.Secret(
             self,
-            "redshift_cluster_secret",
-            description="Redshift POC Cluster Secret",
-            secret_name="RedshiftPOCClusterSecret",
+            "redshift_password",
+            description="Redshift password",
+            secret_name="REDSHIFT_PASSWORD",
             generate_secret_string=_sm.SecretStringGenerator(exclude_punctuation=True),
             removal_policy=cdk.RemovalPolicy.DESTROY,
         )
@@ -143,12 +131,15 @@ class Redshift(cdk.Stack):
             cluster_type=REDSHIFT_CLUSTER_TYPE,
             number_of_nodes=REDSHIFT_NUM_NODES,
             master_username=REDSHIFT_MASTER_USERNAME,
-            master_user_password=redshift_cluster_secret.secret_value.to_string(),
+            master_user_password=redshift_password.secret_value.to_string(),
             iam_roles=[redshift_cluster_role.role_arn],
             node_type=REDSHIFT_NODE_TYPE,
             cluster_subnet_group_name=redshift_cluster_subnet_group.ref,
             vpc_security_group_ids=[redshift_sg.security_group_id],
         )
+
+        # self ...
+        self.REDSHIFT_SG = redshift_sg
 
         # outputs
         output_1 = cdk.CfnOutput(
@@ -159,18 +150,19 @@ class Redshift(cdk.Stack):
         )
         output_2 = cdk.CfnOutput(
             self,
+            "RedshiftMasterUser",
+            value=REDSHIFT_MASTER_USERNAME,
+            description=f"Redshift master username",
+        )
+
+        output_3 = cdk.CfnOutput(
+            self,
             "RedshiftClusterPassword",
             value=(
                 f"https://console.aws.amazon.com/secretsmanager/home?region="
                 f"{cdk.Aws.REGION}"
                 f"#/secret?name="
-                f"{redshift_cluster_secret.secret_arn}"
+                f"{redshift_password.secret_arn}"
             ),
             description=f"Redshift Cluster Password in Secrets Manager",
-        )
-        output_3 = cdk.CfnOutput(
-            self,
-            "RedshiftIAMRole",
-            value=(f"{redshift_cluster_role.role_arn}"),
-            description=f"Redshift Cluster IAM Role Arn",
         )
