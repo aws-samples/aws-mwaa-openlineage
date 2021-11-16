@@ -8,6 +8,8 @@ Use the AWS CDK to create a data lake.
 At a bash terminal session.
 
 ```bash
+# install the cdkv2 if required
+npm install -g aws-cdk@next
 # clone the repo
 git clone git@ssh.gitlab.aws.dev:mcgregf/aws-cdk-datalake.git
 # move to directory
@@ -22,29 +24,28 @@ source .env/bin/activate
 # builds requirements.txt from setup.py and installs requirements
 # builds requirements.txt for each included requirements.in
 ./scripts/install-deps.sh
+# bookstrap if required
+npx cdk bootstrap
 ```
-
 -----
-## Amazon Virtual Private Cloud
 
-Use the AWS CDK to deploy an Amazon VPC across multiple availability zones. If using an existing VPC then add the VPCID into the cdk.json file.
+## Foundation - Amazon Virtual Private Cloud
+
+Use the AWS CDK to deploy an Amazon VPC across multiple availability zones.
+The foundation stack also 
 
 ```bash
 # deploy the storage stack
 npx cdk deploy cdkdl-dev/foundation/storage
 ```
 
-1. create the vpc
-1. create an s3 vpc endpoint for the vpc
-1. create s3 bucket for scripts
-1. create s3 bucket for raw data
-1. create s3 bucket for processed data
-1. deploy data files from scripts directory into the raw bucket
+Copy the new york taxi data into the s3 bucket using the stack output <nytaxicopy> 
 
 -----
-## Marquez (open lineage)
 
-Deploy marquez into a docker container running on EC2 as a UI for lineage
+## Governance - lineage
+
+Deploy marquez into a docker container running on EC2 as a UI for openlineage
 
 ```bash
 # deploy the lineage stack
@@ -52,7 +53,7 @@ npx cdk deploy cdkdl-dev/governance/lineage
 ```
 
 Follow up actions:
-1. Connect to the openlineage UX at: Outputs > <MarquezUI>
+1. Connect to the openlineage UX at: Outputs > <LineageUI>
 2. Create a secret in AWS Secrets Manager:
     1. key = "airflow/variables/AIRFLOW__LINEAGE__BACKEND"
     2. value = "openlineage.lineage_backend.OpenLineageBackend"
@@ -64,7 +65,20 @@ Follow up actions:
     2. value = "cdkdl-dev"
 
 -----
-## Amazon Redshift
+
+## Batch - Glue catalog
+
+Create a glue database and glue crawler
+
+```bash
+# deploy the glue stack
+npx cdk deploy cdkdl-dev/batch/glue
+```
+
+
+-----
+
+## Query - Amazon Redshift
 
 1. Build the redshift cluster
 2. Create the cluster password in secrets manager
@@ -77,7 +91,12 @@ npx cdk deploy cdkdl-dev/query/redshift
 Follow up actions:
 1. Build the MWAA Redshift connection string as:
 ```python
-    connection_string = f"postgres://{login}:{password}@{host}:{port}/{schema}"
+    login = <mylogin>
+    password = <mypassword>
+    host = <redshifthost>
+    port =5439
+    schema = "dev"
+    print(f"postgres://{login}:{password}@{host}:{port}/{schema}")
 ```
    1. RedshiftMasterPassword can be found in AWS Secrets Manager us "REDSHIFT_PASSWORD" 
 3. Create a secret in AWS Secrets Manager:
@@ -85,7 +104,50 @@ Follow up actions:
     2. value = <connection_string"
 
 -----
-## Amazon Managed Workflows for Apache AirFlow
+
+## Orchestration - MWAA local runner 
+
+1. Build an instance to for MWAA local runner 
+
+```bash
+npx cdk deploy cdkdl-dev/orchestration/localrunner
+```
+
+Install the local runner ...
+
+```bash
+git clone https://github.com/aws/aws-mwaa-local-runner.git
+cd aws-mwaa-local-runner
+# build the image
+./mwaa-local-env build-image
+```
+
+To dev files for dev:
+Copy dag files to `aws-mwaa-local-runner/dags/*`
+requirements.txt (or requirements.in) to `aws-mwaa-local-runner/dags/requirements.txt` 
+Plugins to `plugins/*`
+
+In `docker/config/airflow.cfg` set `lazy_load_plugins = False`
+
+```bash
+# test reqirements
+./mwaa-local-env test-requirements
+```
+
+Start the remote airflow local runner
+
+```bash
+./mwaa-local-env start
+```
+
+Next
+`
+1. Enable security group ingress from mwaa local runner to lineage api
+2. Confirm local runner can access lineage
+3. Work out how to debug PostgresOperator
+
+
+## Orchestration - Amazon Managed Workflows for Apache AirFlow
 
 1. Build the Amazon MWAA S3 bucket
 1. Build the Amazon MWAA Env
@@ -112,7 +174,8 @@ Follow up actions:
 2. Execute the "hello_postgres" DAG
 
 -----
-## Amazon Athena
+
+## Query - Amazon Athena
 
 ```bash
 # deploy athena stakc
@@ -137,12 +200,10 @@ npx cdk deploy cdkdl-dev/query/athena
 1. Create EMR job to be executed from MWAA using transient cluster to create parquet file in curated bucket
 7. Create athena catalog and link to main account
 8. Set Athena query location bucket with s3
-9. Send EMR Spark job via AirFlow
-10. Send Redshift SQL job via AirFlow
+9. + Send EMR Spark job via AirFlow
 11. Send Glue crawler job via AirFlow
 12. Send Redshift copy job via AirFlow
 13. Create S3 sensor with AirFlow, and register data via lineage?
-14. Move airflow env vars to secrets
-14. Create Redshift connection into secrets
+14. Remove local runner dependency for openlineage stack
 
 https://f11bff86-0f66-47b3-be91-4401f58aab47.c13.us-east-1.airflow.amazonaws.com

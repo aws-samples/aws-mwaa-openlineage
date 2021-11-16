@@ -1,9 +1,12 @@
 # import modules
+from constructs import Construct
 from aws_cdk import (
-    core as cdk,
     aws_ec2 as ec2,
     aws_iam as iam,
     aws_lakeformation as lf,
+    CfnOutput,
+    Duration,
+    Stack,
 )
 from pathlib import Path
 
@@ -11,7 +14,7 @@ from pathlib import Path
 dirname = Path(__file__).parent
 
 
-class Lineage(cdk.Stack):
+class Lineage(Stack):
     """
     Deploy ec2 instance
     Clone marquez
@@ -20,33 +23,33 @@ class Lineage(cdk.Stack):
 
     def __init__(
         self,
-        scope: cdk.Construct,
+        scope: Construct,
         id: str,
         *,
         VPC: ec2.Vpc,
         EXTERNAL_IP: str,
-        MARQUEZ_INSTANCE: ec2.InstanceType,
+        LINEAGE_INSTANCE: ec2.InstanceType,
         KEY_PAIR: str,
     ):
         super().__init__(scope, id)
 
-        # marquez sg
-        mq_sg = ec2.SecurityGroup(
-            self, "mq_sg", vpc=VPC, description="Marquez instance sg"
+        # lineage sg
+        lineage_sg = ec2.SecurityGroup(
+            self, "lineage_sg", vpc=VPC, description="Lineage instance sg"
         )
 
         # Open port 22 for SSH
-        for port in [22, 3000, 5000, 5001]:
-            mq_sg.add_ingress_rule(
+        for port in [22, 3000, 5000]:
+            lineage_sg.add_ingress_rule(
                 ec2.Peer.ipv4(f"{EXTERNAL_IP}/32"),
                 ec2.Port.tcp(port),
-                "from own public ip",
+                "Lineage from external ip",
             )
 
         # role for instance
-        mq_instance_role = iam.Role(
+        lineage_instance_role = iam.Role(
             self,
-            "mq_instance_role",
+            "lineage_instance_role",
             assumed_by=iam.ServicePrincipal("ec2.amazonaws.com"),
             managed_policies=[
                 iam.ManagedPolicy.from_aws_managed_policy_name(
@@ -56,18 +59,18 @@ class Lineage(cdk.Stack):
         )
 
         # instance for lineage
-        mq_instance = ec2.Instance(
+        lineage_instance = ec2.Instance(
             self,
-            "marquez_instance",
-            instance_type=MARQUEZ_INSTANCE,
+            "lineage_instance",
+            instance_type=LINEAGE_INSTANCE,
             machine_image=ec2.AmazonLinuxImage(
                 generation=ec2.AmazonLinuxGeneration.AMAZON_LINUX_2
             ),
             vpc=VPC,
             vpc_subnets={"subnet_type": ec2.SubnetType.PUBLIC},
             key_name=KEY_PAIR,
-            role=mq_instance_role,
-            security_group=mq_sg,
+            role=lineage_instance_role,
+            security_group=lineage_sg,
             init=ec2.CloudFormationInit.from_config_sets(
                 config_sets={"default": ["prereqs", "marquez"]},
                 # order: packages -> groups -> users-> sources -> files -> commands -> services
@@ -136,42 +139,43 @@ class Lineage(cdk.Stack):
             ),
             init_options={
                 "config_sets": ["default"],
-                "timeout": cdk.Duration.minutes(30),
+                "timeout": Duration.minutes(30),
             },
         )
 
         # attributes to share
-        self.MARQUEZ_URL = mq_instance.instance_public_dns_name
-        self.MARQUEZ_SG = mq_sg
+        self.OPENLINEAGE_URL = lineage_instance.instance_public_dns_name
+        self.OPENLINEAGE_API = f"http://{lineage_instance.instance_public_dns_name}:5000"
+        self.OPENLINEAGE_SG = lineage_sg
 
         # create Outputs
-        cdk.CfnOutput(
+        CfnOutput(
             self,
-            "MarquezInstanceSSH",
-            value=f"ssh -i ~/Downloads/newKeyPair.pem ec2-user@{mq_instance.instance_public_dns_name}",
-            export_name="marquez-instance-ssh",
+            "LineageInstanceSSH",
+            value=f"ssh -i ~/Downloads/newKeyPair.pem ec2-user@{lineage_instance.instance_public_dns_name}",
+            export_name="lineage-instance-ssh",
         )
-        cdk.CfnOutput(
+        CfnOutput(
             self,
-            "MarquezUI",
-            value=f"http://{mq_instance.instance_public_dns_name}:3000",
-            export_name="marquez-ui",
+            "LineageUI",
+            value=f"http://{lineage_instance.instance_public_dns_name}:3000",
+            export_name="lineage-ui",
         )
-        cdk.CfnOutput(
+        CfnOutput(
             self,
             "OpenlineageApi",
-            value=f"http://{mq_instance.instance_public_dns_name}:5000",
+            value=f"http://{lineage_instance.instance_public_dns_name}:5000",
             export_name="openlineage-api",
         )
 
 
-class LakeFormation(cdk.Stack):
+class LakeFormation(Stack):
     """
     Create a lake formation admin
     """
 
     def __init__(
-        self, scope: cdk.Construct, id: str, *, VPC: ec2.Vpc, LF_ADMIN_USER: str = None
+        self, scope: Construct, id: str, *, VPC: ec2.Vpc, LF_ADMIN_USER: str = None
     ):
         super().__init__(scope, id)
 

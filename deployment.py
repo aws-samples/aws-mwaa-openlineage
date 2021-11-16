@@ -1,69 +1,81 @@
 from typing import Any
-from aws_cdk import core as cdk
+
+# cdk stuff
+from constructs import Construct
+from aws_cdk import Stack, Stage
 
 # get constants
 import constants
 
 # get stacks
 from foundation.infrastructure import Storage
-from governance.infrastructure import LakeFormation, Lineage
-from orchestration.infrastructure import MWAA
+from governance.infrastructure import Lineage
+from orchestration.infrastructure import MWAA, MWAALocalRunner
 from query.infrastructure import Athena, Redshift
-from batch.infrastructure import EMR
+from batch.infrastructure import EMR, Glue
 
 
-class CDKDataLake(cdk.Stage):
+class CDKDataLake(Stage):
     def __init__(
         self,
-        scope: cdk.Construct,
+        scope: Construct,
         id_: str,
         **kwargs: Any,
     ):
         super().__init__(scope, id_, **kwargs)
 
         # foundation capabilities
-        foundation = cdk.Stack(self, "foundation")
-        storage = Storage(foundation, "storage")
+        foundation = Stack(self, "foundation")
+        storage = Storage(foundation, "storage", EXTERNAL_IP=constants.EXTERNAL_IP)
 
         # governance
         # open lineage
-        governance = cdk.Stack(self, "governance")
+        governance = Stack(self, "governance")
         lineage = Lineage(
             governance,
             "lineage",
             VPC=storage.VPC,
-            EXTERNAL_IP=storage.EXTERNAL_IP,
-            MARQUEZ_INSTANCE=constants.DEV_MARQUEZ_INSTANCE,
+            EXTERNAL_IP=constants.EXTERNAL_IP,
+            LINEAGE_INSTANCE=constants.DEV_LINEAGE_INSTANCE,
             KEY_PAIR=constants.DEV_KEY_PAIR,
         )
 
         # batch
-        batch = cdk.Stack(self, "batch")
+        batch = Stack(self, "batch")
         emr = EMR(
             batch,
             "emr",
             VPC=storage.VPC,
-            EMR_NAME=f"{constants.CDK_APP_NAME}-dev",
+            EMR_NAME=constants.DEV_EMR_NAME,
             EMR_RELEASE_LABEL=constants.DEV_EMR_RELEASE_LABEL,
             EMR_CORE_INSTANCE_COUNT=constants.DEV_EMR_CORE_INSTANCE_COUNT,
             EMR_CORE_INSTANCE_TYPE=constants.DEV_EMR_CORE_INSTANCE_TYPE,
             EMR_MASTER_INSTANCE_COUNT=constants.DEV_EMR_MASTER_INSTANCE_COUNT,
             EMR_MASTER_INSTANCE_TYPE=constants.DEV_EMR_MASTER_INSTANCE_TYPE,
         )
+        glue = Glue(
+            batch,
+            "glue",
+            S3_BUCKET_RAW_ARN=storage.S3_BUCKET_RAW_ARN,
+            S3_BUCKET_RAW_NAME=storage.S3_BUCKET_RAW_NAME,
+            GLUE_DB_PREFIX=constants.DEV_GLUE_DB_PREFIX,
+            OPENLINEAGE_API=lineage.OPENLINEAGE_API,
+            OPENLINEAGE_NAMESPACE=constants.DEV_OPENLINEAGE_NAMESPACE,
+            VPC=storage.VPC,
+        )
 
         # query
-        query = cdk.Stack(self, "query")
+        query = Stack(self, "query")
         athena = Athena(
             query,
             "athena",
             VPC=storage.VPC,
-            ATHENA_CATALOG_NAME=f"{constants.CDK_APP_NAME}-dev",
         )
         redshift = Redshift(
             query,
             "redshift",
             VPC=storage.VPC,
-            REDSHIFT_DB_NAME=f"{constants.CDK_APP_NAME}-dev",
+            REDSHIFT_DB_NAME=constants.DEV_REDSHIFT_DB_NAME,
             REDSHIFT_NUM_NODES=constants.DEV_REDSHIFT_NUM_NODES,
             REDSHIFT_NODE_TYPE=constants.DEV_REDSHIFT_NODE_TYPE,
             REDSHIFT_CLUSTER_TYPE=constants.DEV_REDSHIFT_CLUSTER_TYPE,
@@ -71,16 +83,21 @@ class CDKDataLake(cdk.Stage):
         )
 
         # orchestration
-        orchestration = cdk.Stack(self, "orchestration")
+        orchestration = Stack(self, "orchestration")
+        # instance for mwaa local runner
+        localrunner = MWAALocalRunner(
+            orchestration,
+            "localrunner",
+            VPC=storage.VPC,
+            EXTERNAL_IP=constants.EXTERNAL_IP,
+        )
+        # mwaa
         mwaa = MWAA(
             orchestration,
             "mwaa",
             VPC=storage.VPC,
-            MWAA_ENV_NAME=f"{constants.CDK_APP_NAME}-dev",
+            MWAA_ENV_NAME=constants.DEV_MWAA_ENV_NAME,
             MWAA_ENV_CLASS=constants.DEV_MWAA_ENV_CLASS,
             MWAA_PLUGINS_VERSION=constants.DEV_MWAA_PLUGINS_VERSION,
             MWAA_REQUIREMENTS_VERSION=constants.DEV_MWAA_REQUIREMENTS_VERSION,
-            # OPENLINEAGE_URL=f"http://{lineage.MARQUEZ_URL}:5000",
-            OPENLINEAGE_SG=lineage.MARQUEZ_SG,
-            REDSHIFT_SG = redshift.REDSHIFT_SG,
         )

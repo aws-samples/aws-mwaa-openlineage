@@ -1,0 +1,86 @@
+{
+  "eventType": "COMPLETE",
+  "eventTime": 1636646662.687894,
+  "run": {
+    "runId": "d3968e5f-84ac-48c1-954c-f999ff27ef3a",
+    "facets": null
+  },
+  "job": {
+    "namespace": "sql-runner-dev",
+    "name": "ORDDETP - ORDDETP.avro",
+    "facets": {
+      "sourceCodeLocation": null,
+      "sql": {
+        "_producer": "lyndon-thinkpad/127.0.1.1",
+        "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/SQLJobFacet.json#/$defs/SQLJobFacet",
+        "query": "SELECT t.*, CURRENT_DATE AS ingest_date FROM HBMOFA.ORDDETP t WHERE (BAYY >= 93 AND BAMMDD >= 801 AND BAMMDD < 1111) OR (BAYY = 92 AND BAMMDD >= 1301)"
+      },
+      "documentation": {
+        "_producer": "lyndon-thinkpad/127.0.1.1",
+        "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/DocumentationJobFacet.json#/$defs/DocumentationJobFacet",
+        "description": "SQL Runner Job for /tmp/sql_runner_tests4560779590026189736/config.conf"
+      }
+    }
+  },
+  "inputs": [
+    {
+      "namespace": "jdbc:h2:mem:sql_tests_like",
+      "name": "HBMOFA.ORDDETP",
+      "facets": {
+        "documentation": null,
+        "dataSource": {
+          "_producer": "lyndon-thinkpad/127.0.1.1",
+          "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/DatasourceDatasetFacet.json#/$defs/DatasourceDatasetFacet",
+          "name": "jdbc:h2:mem:sql_tests_like",
+          "uri": "jdbc:h2:mem:sql_tests_like"
+        },
+        "schema": null
+      },
+      "inputFacets": null
+    }
+  ],
+  "outputs": [
+    {
+      "namespace": "s3://sql-runner",
+      "name": "2021-11-11/incremental/ORDDETP.avro",
+      "facets": {
+        "documentation": null,
+        "dataSource": {
+          "_producer": "lyndon-thinkpad/127.0.1.1",
+          "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/DatasourceDatasetFacet.json#/$defs/DatasourceDatasetFacet",
+          "name": "s3://sql-runner",
+          "uri": "s3://sql-runner"
+        },
+        "schema": null
+      },
+      "outputFacets": null
+    }
+  ],
+  "producer": "lyndon-thinkpad/127.0.1.1",
+  "schemaURL": "https://openlineage.io/spec/1-0-2/OpenLineage.json#/$defs/RunEvent"
+},
+{
+  "eventType": "START",
+  "eventTime": "2020-12-09T23:37:31.081Z",
+  "run": {
+    "runId": "3b452093-782c-4ef2-9c0c-aafe2aa6f34d",
+  },
+  "job": {
+    "namespace": "my-scheduler-namespace",
+    "name": "myjob.mytask",
+  },
+  "inputs": [
+    {
+      "namespace": "my-datasource-namespace",
+      "name": "instance.schema.table",
+    }
+  ],
+  "outputs": [
+    {
+      "namespace": "my-datasource-namespace",
+      "name": "instance.schema.output_table",
+    }
+  ],
+  "producer": "https://github.com/OpenLineage/OpenLineage/blob/v1-0-0/client",
+  "schemaURL": "https://openlineage.io/spec/1-0-0/OpenLineage.json#/definitions/RunEvent"
+}

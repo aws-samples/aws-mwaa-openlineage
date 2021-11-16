@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-from aws_cdk import core as cdk
+from aws_cdk import App, Stack
+from aws_cdk import pipelines
 
 # The AWS CDK application entry point
 import constants
 from deployment import CDKDataLake
-from pipeline import Pipeline
 
-app = cdk.App()
+app = App()
 
 # Development
 CDKDataLake(

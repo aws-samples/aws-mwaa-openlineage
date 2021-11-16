@@ -1,22 +1,22 @@
 # import modules
+from constructs import Construct
 from aws_cdk import (
-    core,
     aws_cloudtrail as cloudtrail,
     aws_ec2 as ec2,
+    aws_ecr as ecr,
     aws_s3 as s3,
-    aws_s3_deployment as s3_deploy,
+    CfnOutput,
+    RemovalPolicy,
+    Stack,
+    Tags,
 )
 from pathlib import Path
 
 # set path
 dirname = Path(__file__).parent
 
-# add creator ip
-import urllib.request
-external_ip = urllib.request.urlopen("https://ident.me").read().decode("utf8")
 
-
-class Storage(core.Stack):
+class Storage(Stack):
     """
     create the vpc
     create an s3 vpc endpoint
@@ -33,7 +33,7 @@ class Storage(core.Stack):
     deploy file from scripts directory into the raw bucket
     """
 
-    def __init__(self, scope: core.Construct, id: str, **kwargs) -> None:
+    def __init__(self, scope: Construct, id: str, EXTERNAL_IP=None, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
 
         # create the vpc
@@ -52,23 +52,10 @@ class Storage(core.Stack):
             encryption=s3.BucketEncryption.S3_MANAGED,
             public_read_access=False,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
-            removal_policy=core.RemovalPolicy.DESTROY,
+            removal_policy=RemovalPolicy.DESTROY,
             auto_delete_objects=True,
         )
-        core.Tags.of(s3_bucket_logs).add("purpose", "LOGS")
-
-        # create s3 bucket for scripts
-        #s3_bucket_scripts = s3.Bucket(
-        #    self,
-        #    "s3_bucket_scripts",
-        #    encryption=s3.BucketEncryption.S3_MANAGED,
-        #    public_read_access=False,
-        #    block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
-        #    removal_policy=core.RemovalPolicy.DESTROY,
-        #    auto_delete_objects=True,
-        #    server_access_logs_bucket=s3_bucket_logs,
-        #)
-        #core.Tags.of(s3_bucket_scripts).add("purpose", "SCRIPTS")
+        Tags.of(s3_bucket_logs).add("purpose", "LOGS")
 
         # create s3 bucket for raw
         s3_bucket_raw = s3.Bucket(
@@ -77,11 +64,11 @@ class Storage(core.Stack):
             encryption=s3.BucketEncryption.S3_MANAGED,
             public_read_access=False,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
-            removal_policy=core.RemovalPolicy.DESTROY,
+            removal_policy=RemovalPolicy.DESTROY,
             auto_delete_objects=True,
             server_access_logs_bucket=s3_bucket_logs,
         )
-        core.Tags.of(s3_bucket_raw).add("purpose", "RAW")
+        Tags.of(s3_bucket_raw).add("purpose", "RAW")
 
         # create s3 bucket for processed
         s3_bucket_processed = s3.Bucket(
@@ -90,11 +77,11 @@ class Storage(core.Stack):
             encryption=s3.BucketEncryption.S3_MANAGED,
             public_read_access=False,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
-            removal_policy=core.RemovalPolicy.DESTROY,
+            removal_policy=RemovalPolicy.DESTROY,
             auto_delete_objects=True,
             server_access_logs_bucket=s3_bucket_logs,
         )
-        core.Tags.of(s3_bucket_processed).add("purpose", "PROCESSED")
+        Tags.of(s3_bucket_processed).add("purpose", "PROCESSED")
 
         # create s3 bucket for servicing
         s3_bucket_serving = s3.Bucket(
@@ -103,50 +90,46 @@ class Storage(core.Stack):
             encryption=s3.BucketEncryption.S3_MANAGED,
             public_read_access=False,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
-            removal_policy=core.RemovalPolicy.DESTROY,
+            removal_policy=RemovalPolicy.DESTROY,
             auto_delete_objects=True,
             server_access_logs_bucket=s3_bucket_logs,
         )
-        core.Tags.of(s3_bucket_serving).add("purpose", "SERVING")
+        Tags.of(s3_bucket_serving).add("purpose", "SERVING")
 
         # cloudtrail for object logs
         trail = cloudtrail.Trail(self, "dl_trail", bucket=s3_bucket_logs)
         trail.add_s3_event_selector(
             s3_selector=[
-        #        cloudtrail.S3EventSelector(bucket=s3_bucket_scripts),
                 cloudtrail.S3EventSelector(bucket=s3_bucket_raw),
                 cloudtrail.S3EventSelector(bucket=s3_bucket_processed),
                 cloudtrail.S3EventSelector(bucket=s3_bucket_serving),
-        #        cloudtrail.S3EventSelector(bucket=s3_bucket_athena),
             ]
         )
 
         # deploy customer file to the raw bucket
-        s3_deploy.BucketDeployment(
-            self,
-            "xyz",
-            destination_bucket=s3_bucket_raw,
-            sources=[
-                s3_deploy.Source.asset("./scripts", exclude=["**", "!customer.tbl"])
-            ],
-        )
+        # s3_deploy.BucketDeployment(
+        #    self,
+        #    "xyz",
+        #    destination_bucket=s3_bucket_raw,
+        #    sources=[
+        #        s3_deploy.Source.asset("./scripts", exclude=["**", "!customer.tbl"])
+        #    ],
+        # )
 
-        # self ...
+        # container storage (ecr)
+        #ecr_repo = ecr.Repository(
+        #    self, "ecr_repo", removal_policy=RemovalPolicy.DESTROY
+        #)
+
         self.VPC = vpc
-        self.EXTERNAL_IP = external_ip
+        self.S3_BUCKET_RAW_ARN = s3_bucket_raw.bucket_arn
+        self.S3_BUCKET_RAW_NAME = s3_bucket_raw.bucket_name
+        # self.ECR_REPO = ecr_repo
 
-        # set output props
-        self.output_props = {}
-        self.output_props["vpc"] = vpc
-        self.output_props["trail"] = trail
-        self.output_props["s3_bucket_logs"] = s3_bucket_logs
-        #self.output_props["s3_bucket_scripts"] = s3_bucket_scripts
-        self.output_props["s3_bucket_raw"] = s3_bucket_raw
-        self.output_props["s3_bucket_processed"] = s3_bucket_processed
-        self.output_props["s3_bucket_serving"] = s3_bucket_serving
-        self.output_props["EXTERNAL_IP"] = external_ip
-
-    # properties
-    @property
-    def outputs(self):
-        return self.output_props
+        # outputs
+        CfnOutput(
+            self,
+            "nyc-taxi-copy",
+            value=f"aws s3 cp s3://nyc-tlc/trip\ data/green_tripdata_2020-06.csv s3://{s3_bucket_raw.bucket_name}/nyctaxi/",
+            export_name="nyc-taxi-copy",
+        )

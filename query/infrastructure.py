@@ -1,24 +1,27 @@
 # import modules
+from constructs import Construct
 from aws_cdk import (
-    core as cdk,
     aws_athena as athena,
     aws_ec2 as ec2,
     aws_iam as iam,
     aws_s3 as s3,
     aws_redshift as redshift,
     aws_secretsmanager as _sm,
+    Aws,
+    CfnOutput,
+    RemovalPolicy,
+    Stack
 )
 
 
-class Athena(cdk.Stack):
+class Athena(Stack):
     """create crawlers for the s3 buckets"""
 
     def __init__(
         self,
-        scope: cdk.Construct,
+        scope: Construct,
         id: str,
         VPC=ec2.Vpc,
-        ATHENA_CATALOG_NAME: str = None,
     ):
         super().__init__(scope, id)
 
@@ -35,18 +38,18 @@ class Athena(cdk.Stack):
             encryption=s3.BucketEncryption.S3_MANAGED,
             public_read_access=False,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
-            removal_policy=cdk.RemovalPolicy.DESTROY,
+            removal_policy=RemovalPolicy.DESTROY,
             auto_delete_objects=True,
             #    server_access_logs_bucket=s3_bucket_logs,
         )
 
 
-class Redshift(cdk.Stack):
+class Redshift(Stack):
     """create crawlers for the s3 buckets"""
 
     def __init__(
         self,
-        scope: cdk.Construct,
+        scope: Construct,
         id: str,
         REDSHIFT_DB_NAME: str,
         REDSHIFT_NUM_NODES: str,
@@ -67,7 +70,7 @@ class Redshift(cdk.Stack):
             description="Redshift password",
             secret_name="REDSHIFT_PASSWORD",
             generate_secret_string=_sm.SecretStringGenerator(exclude_punctuation=True),
-            removal_policy=cdk.RemovalPolicy.DESTROY,
+            removal_policy=RemovalPolicy.DESTROY,
         )
 
         redshift_cluster_role = iam.Role(
@@ -142,25 +145,25 @@ class Redshift(cdk.Stack):
         self.REDSHIFT_SG = redshift_sg
 
         # outputs
-        output_1 = cdk.CfnOutput(
+        output_1 = CfnOutput(
             self,
             "RedshiftCluster",
             value=f"{redshift_cluster.attr_endpoint_address}",
             description=f"RedshiftCluster Endpoint",
         )
-        output_2 = cdk.CfnOutput(
+        output_2 = CfnOutput(
             self,
             "RedshiftMasterUser",
             value=REDSHIFT_MASTER_USERNAME,
             description=f"Redshift master username",
         )
 
-        output_3 = cdk.CfnOutput(
+        output_3 = CfnOutput(
             self,
             "RedshiftClusterPassword",
             value=(
                 f"https://console.aws.amazon.com/secretsmanager/home?region="
-                f"{cdk.Aws.REGION}"
+                f"{Aws.REGION}"
                 f"#/secret?name="
                 f"{redshift_password.secret_arn}"
             ),

@@ -17,26 +17,9 @@ setuptools.setup(
         include=["batch", "foundation", "governance", "orchestration"]
     ),
     install_requires=[
-        "aws_cdk.core",
-        "aws_cdk.aws_athena",
-        "aws_cdk.aws_cloudformation",
-        "aws_cdk.aws_cloudtrail",
-        "aws_cdk.aws_dynamodb",
-        "aws_cdk.aws_emr",
-        "aws_cdk.aws_events",
-        "aws_cdk.aws_events_targets",
-        "aws_cdk.aws_glue",
-        "aws_cdk.aws_iam",
-        "aws_cdk.aws_lakeformation",
-        "aws_cdk.aws_lambda",
-        "aws_cdk.aws_lambda_python",
-        "aws_cdk.aws_logs",
-        "aws_cdk.pipelines",
-        "aws_cdk.aws_mwaa",
-        "aws_cdk.aws_redshift",
-        "aws_cdk.aws_s3",
-        "aws_cdk.aws_s3_deployment",
-        "aws_cdk.aws_secretsmanager",
+        # cdk v2
+        "aws-cdk-lib",
+        "constructs"
     ],
     extras_require={
         "dev": [
@@ -50,6 +33,7 @@ setuptools.setup(
             "google-cloud-bigquery",
             "great-expectations",
             "requests",
+            "openlineage-python"
         ]
     },
     python_requires=">=3.6",

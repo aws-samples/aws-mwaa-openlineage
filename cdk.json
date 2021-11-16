@@ -1,11 +1,3 @@
 {
-  "app": "python app.py",
-  "context": {
-    "constants": {
-      "DEV_KEY_PAIR": "newKeyPair",
-      "DEV_PERMISSIONS": "IAM",
-      "DEV_LF_ADMIN_USER": "mcgregf-dev1",
-      "DEV_MARQUEZ_INSTANCE": "t2.xlarge"
-    }
-  }
+  "app": "python app.py"
 }

@@ -1,8 +1,12 @@
 import os
+import urllib.request
 
+from aws_cdk import App, Stack, Environment
 from aws_cdk import aws_dynamodb as dynamodb
-from aws_cdk import core as cdk
 from aws_cdk import aws_ec2 as ec2
+
+# add creator ip
+EXTERNAL_IP = urllib.request.urlopen("https://ident.me").read().decode("utf8")
 
 CDK_APP_NAME = "cdkdl"
 CDK_APP_PYTHON_VERSION = "3.7"
@@ -13,28 +17,34 @@ GITHUB_OWNER = "OWNER"
 GITHUB_REPO = "REPO"
 GITHUB_TRUNK_BRANCH = "TRUNK_BRANCH"
 
-DEV_ENV = cdk.Environment(
+DEV_ENV = Environment(
     account=os.environ["CDK_DEFAULT_ACCOUNT"], region=os.environ["CDK_DEFAULT_REGION"]
 )
-DEV_KEY_PAIR = "newKeyPair"
-DEV_MARQUEZ_INSTANCE = ec2.InstanceType("t2.xlarge")
-DEV_MWAA_ENV_CLASS = "mw1.small"
-DEV_MWAA_PLUGINS_VERSION = "UTzoVKUtGdPqtp2RzwnZvZ1htPJRlswP"
-DEV_MWAA_REQUIREMENTS_VERSION = "HitsjRk2yoY8T3BkNOZdcSzBSUK48Ayi"
-DEV_PERMISSIONS = "IAM"
-DEV_LF_ADMIN_USER = "mcgregf-dev1"
+DEV_EMR_NAME=f"{CDK_APP_NAME}-dev"
 DEV_EMR_RELEASE_LABEL = "6.0.0"
 DEV_EMR_CORE_INSTANCE_COUNT = 1
 DEV_EMR_CORE_INSTANCE_TYPE = "m4.large"
 DEV_EMR_MASTER_INSTANCE_COUNT = 1
 DEV_EMR_MASTER_INSTANCE_TYPE = "m4.large"
+DEV_EMR_NAME=f"{CDK_APP_NAME}-dev"
+DEV_GLUE_DB_PREFIX=f"{CDK_APP_NAME}-dev"
+DEV_KEY_PAIR = "newKeyPair"
+DEV_LF_ADMIN_USER = "mcgregf-dev1"
+DEV_LINEAGE_INSTANCE = ec2.InstanceType("t2.xlarge")
+DEV_MWAA_ENV_CLASS = "mw1.small"
+DEV_MWAA_ENV_NAME=f"{CDK_APP_NAME}-dev"
+DEV_MWAA_PLUGINS_VERSION = "fX1JYpSJGsD4HhKcsgJRZ8wkmflXST.I"
+DEV_MWAA_REQUIREMENTS_VERSION = "N0MsJPsONyYtd6o_afTskMHrvG78vutT"
+DEV_OPENLINEAGE_NAMESPACE=f"{CDK_APP_NAME}-dev"
+DEV_PERMISSIONS = "IAM"
+DEV_REDSHIFT_CLUSTER_TYPE = "multi-node"
+DEV_REDSHIFT_MASTER_USERNAME = f"{CDK_APP_NAME}_user"
+DEV_REDSHIFT_DB_NAME=f"{CDK_APP_NAME}-dev"
 DEV_REDSHIFT_NUM_NODES= 2
 DEV_REDSHIFT_NODE_TYPE= "ra3.xlplus"
-DEV_REDSHIFT_CLUSTER_TYPE = "multi-node"
-DEV_REDSHIFT_MASTER_USERNAME = "cdkdl_user"
 
-PIPELINE_ENV = cdk.Environment(account="222222222222", region="eu-west-1")
+PIPELINE_ENV = Environment(account="222222222222", region="eu-west-1")
 
-PROD_ENV = cdk.Environment(account="333333333333", region="eu-west-1")
+PROD_ENV = Environment(account="333333333333", region="eu-west-1")
 PROD_API_LAMBDA_RESERVED_CONCURRENCY = 10
 PROD_DATABASE_DYNAMODB_BILLING_MODE = dynamodb.BillingMode.PROVISIONED
