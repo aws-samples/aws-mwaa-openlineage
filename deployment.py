@@ -58,6 +58,8 @@ class CDKDataLake(Stage):
             "glue",
             S3_BUCKET_RAW_ARN=storage.S3_BUCKET_RAW_ARN,
             S3_BUCKET_RAW_NAME=storage.S3_BUCKET_RAW_NAME,
+            S3_BUCKET_PROCESSED_ARN=storage.S3_BUCKET_PROCESSED_ARN,
+            S3_BUCKET_PROCESSED_NAME=storage.S3_BUCKET_PROCESSED_NAME,
             GLUE_DB_PREFIX=constants.DEV_GLUE_DB_PREFIX,
             OPENLINEAGE_API=lineage.OPENLINEAGE_API,
             OPENLINEAGE_NAMESPACE=constants.DEV_OPENLINEAGE_NAMESPACE,

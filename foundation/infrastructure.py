@@ -124,6 +124,8 @@ class Storage(Stack):
         self.VPC = vpc
         self.S3_BUCKET_RAW_ARN = s3_bucket_raw.bucket_arn
         self.S3_BUCKET_RAW_NAME = s3_bucket_raw.bucket_name
+        self.S3_BUCKET_PROCESSED_ARN = s3_bucket_processed.bucket_arn
+        self.S3_BUCKET_PROCESSED_NAME = s3_bucket_processed.bucket_name
         # self.ECR_REPO = ecr_repo
 
         # outputs

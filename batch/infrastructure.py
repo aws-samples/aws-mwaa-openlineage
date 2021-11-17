@@ -1,5 +1,4 @@
 # import modules
-import pathlib
 from typing_extensions import runtime
 from aws_cdk.aws_logs import RetentionDays
 from constructs import Construct
@@ -15,6 +14,7 @@ from aws_cdk import (
     aws_lakeformation as lf,
     aws_lambda as _lambda,
     aws_s3 as s3,
+    aws_s3_assets as s3_assets,
     Aws,
     RemovalPolicy,
     Stack,
@@ -22,6 +22,8 @@ from aws_cdk import (
 from aws_cdk.aws_lambda import Runtime
 
 from pathlib import Path
+
+dirname = Path(__file__).parent
 
 
 class Glue(Stack):
@@ -32,6 +34,8 @@ class Glue(Stack):
         scope: Construct,
         id: str,
         *,
+        S3_BUCKET_PROCESSED_ARN: str,
+        S3_BUCKET_PROCESSED_NAME: str,
         S3_BUCKET_RAW_ARN: str,
         S3_BUCKET_RAW_NAME: str,
         GLUE_DB_PREFIX: str,
@@ -163,10 +167,66 @@ class Glue(Stack):
             role=crawler_role.role_name,
         )
 
+        # upload the glue script
+        # log generator asset
+        glue_job_processed_script = s3_assets.Asset(
+            self,
+            "glue_job_processed_script",
+            path=str(Path(dirname).joinpath("runtime/rawtoprocessed/app.py")),
+        )
+
+        # role for glue job
+        glue_job_processed_role = iam.Role(
+            self,
+            "glue_job_processed_role",
+            assumed_by=iam.ServicePrincipal("glue.amazonaws.com"),
+            inline_policies=[
+                iam.PolicyDocument(
+                    statements=[
+                        iam.PolicyStatement(
+                            effect=iam.Effect.ALLOW,
+                            actions=["s3:*"],
+                            resources=[
+                                S3_BUCKET_RAW_ARN,
+                                f"{S3_BUCKET_RAW_ARN}/*",
+                                S3_BUCKET_PROCESSED_ARN,
+                                f"{S3_BUCKET_PROCESSED_ARN}/*",
+                            ],
+                        ),
+                    ]
+                ),
+            ],
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "service-role/AWSGlueServiceRole"
+                ),
+            ],
+        )
+        glue_job_processed_script.grant_read(glue_job_processed_role)
+
         # create glue job for raw to processed
-        # glue_job_processed = glue.CfnJob(
-        #    self, "glue_job_processed"  # default_arguments={"--conf": "", "--conf": ""}
-        # )
+        glue_job_processed = glue.CfnJob(
+            self,
+            "glue_job_processed",  # default_arguments={"--conf": "", "--conf": ""}
+            command=glue.CfnJob.JobCommandProperty(
+                name="glueetl",
+                python_version="3",
+                script_location=glue_job_processed_script.s3_object_url,
+            ),
+            default_arguments={
+                "--GLUE_DATABASE": glue_db_name,
+                "--S3_BUCKET_RAW": S3_BUCKET_RAW_NAME,
+                "--S3_BUCKET_PROCESSED": S3_BUCKET_PROCESSED_NAME,
+                "--spark.openlineage.host": OPENLINEAGE_API,
+                "--spark.openlineage.namespace": OPENLINEAGE_NAMESPACE,
+                "--spark.jars.packages": "io.openlineage:openlineage-spark:0.3.+",
+                "--spark.extraListeners": "io.openlineage.spark.agent.OpenLineageSparkListener",
+                "--enable-continuous-cloudwatch-log": "true",
+            },
+            description="Process nyc-taxi raw to curated",
+            glue_version="3.0",
+            role=glue_job_processed_role.role_name,
+        )
 
 
 class EMR(Stack):
