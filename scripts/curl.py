@@ -104,3 +104,11 @@ print(resp.content)
     "AIRFLOW_CTX_EXECUTION_DATE": "2021-11-09T20:09:28.299683+00:00",
     "AIRFLOW_CTX_DAG_RUN_ID": "manual__2021-11-09T20:09:28.299683+00:00",
 }
+
+YY/MM/DD HH:mm:ss INFO SparkContext: Registered listener io.openlineage.spark.agent.OpenLineageSparkListener
+YY/MM/DD HH:mm:ss INFO OpenLineageContext: Init OpenLineageContext: Args: ArgumentParser(host=https://YOURHOST, version=1, namespace=YOURNAMESPACE, jobName=default, parentRunId=null, apiKey=Optional.empty) URI: https://YOURHOST/api/1/lineage
+YY/MM/DD HH:mm:ss INFO AsyncEventQueue: Process of event SparkListenerApplicationStart(Databricks Shell,Some(app-XXX-0000),YYYY,root,None,None,None) by listener OpenLineageSparkListener took Xs.
+
+21/11/22 18:48:48 INFO SparkContext: Registered listener io.openlineage.spark.agent.OpenLineageSparkListener
+21/11/22 18:48:49 INFO OpenLineageContext: Init OpenLineageContext: Args: ArgumentParser(host=http://ec2-54-227-194-66.compute-1.amazonaws.com:5000, version=v1, namespace=spark_integration, jobName=default, parentRunId=null, apiKey=Optional.empty) URI: http://ec2-54-227-194-66.compute-1.amazonaws.com:5000/api/v1/lineage
+21/11/22 18:48:49 INFO AsyncEventQueue: Process of event SparkListenerApplicationStart(nyc-taxi-raw-stage,Some(spark-application-1637606927106),1637606926281,spark,None,None,None) by listener OpenLineageSparkListener took 1.092252643s.

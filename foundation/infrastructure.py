@@ -3,7 +3,6 @@ from constructs import Construct
 from aws_cdk import (
     aws_cloudtrail as cloudtrail,
     aws_ec2 as ec2,
-    aws_ecr as ecr,
     aws_s3 as s3,
     CfnOutput,
     RemovalPolicy,
@@ -20,13 +19,11 @@ class Storage(Stack):
     """
     create the vpc
     create an s3 vpc endpoint
-    create an athena vpc endpoint
     create s3 buckets
         scripts
         raw
-        processed
-        serving
-        athena
+        stage
+        analytics
         logs
     create cloudtrail for s3 bucket logging
     create a custom function to empty the s3 buckets on destroy
@@ -48,7 +45,7 @@ class Storage(Stack):
         # create s3 bucket for logs
         s3_bucket_logs = s3.Bucket(
             self,
-            "s3_bucket_logs",
+            "logs",
             encryption=s3.BucketEncryption.S3_MANAGED,
             public_read_access=False,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
@@ -60,7 +57,7 @@ class Storage(Stack):
         # create s3 bucket for raw
         s3_bucket_raw = s3.Bucket(
             self,
-            "s3_bucket_raw",
+            "raw",
             encryption=s3.BucketEncryption.S3_MANAGED,
             public_read_access=False,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
@@ -70,10 +67,10 @@ class Storage(Stack):
         )
         Tags.of(s3_bucket_raw).add("purpose", "RAW")
 
-        # create s3 bucket for processed
-        s3_bucket_processed = s3.Bucket(
+        # create s3 bucket for stage
+        s3_bucket_stage = s3.Bucket(
             self,
-            "s3_bucket_processed",
+            "stage",
             encryption=s3.BucketEncryption.S3_MANAGED,
             public_read_access=False,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
@@ -81,12 +78,12 @@ class Storage(Stack):
             auto_delete_objects=True,
             server_access_logs_bucket=s3_bucket_logs,
         )
-        Tags.of(s3_bucket_processed).add("purpose", "PROCESSED")
+        Tags.of(s3_bucket_stage).add("purpose", "STAGE")
 
         # create s3 bucket for servicing
-        s3_bucket_serving = s3.Bucket(
+        s3_bucket_analytics = s3.Bucket(
             self,
-            "s3_bucket_serving",
+            "analytics",
             encryption=s3.BucketEncryption.S3_MANAGED,
             public_read_access=False,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
@@ -94,39 +91,22 @@ class Storage(Stack):
             auto_delete_objects=True,
             server_access_logs_bucket=s3_bucket_logs,
         )
-        Tags.of(s3_bucket_serving).add("purpose", "SERVING")
+        Tags.of(s3_bucket_analytics).add("purpose", "ANALYTICS")
 
         # cloudtrail for object logs
         trail = cloudtrail.Trail(self, "dl_trail", bucket=s3_bucket_logs)
         trail.add_s3_event_selector(
             s3_selector=[
                 cloudtrail.S3EventSelector(bucket=s3_bucket_raw),
-                cloudtrail.S3EventSelector(bucket=s3_bucket_processed),
-                cloudtrail.S3EventSelector(bucket=s3_bucket_serving),
+                cloudtrail.S3EventSelector(bucket=s3_bucket_stage),
+                cloudtrail.S3EventSelector(bucket=s3_bucket_analytics),
             ]
         )
 
-        # deploy customer file to the raw bucket
-        # s3_deploy.BucketDeployment(
-        #    self,
-        #    "xyz",
-        #    destination_bucket=s3_bucket_raw,
-        #    sources=[
-        #        s3_deploy.Source.asset("./scripts", exclude=["**", "!customer.tbl"])
-        #    ],
-        # )
-
-        # container storage (ecr)
-        #ecr_repo = ecr.Repository(
-        #    self, "ecr_repo", removal_policy=RemovalPolicy.DESTROY
-        #)
-
+        # to share ...
         self.VPC = vpc
-        self.S3_BUCKET_RAW_ARN = s3_bucket_raw.bucket_arn
-        self.S3_BUCKET_RAW_NAME = s3_bucket_raw.bucket_name
-        self.S3_BUCKET_PROCESSED_ARN = s3_bucket_processed.bucket_arn
-        self.S3_BUCKET_PROCESSED_NAME = s3_bucket_processed.bucket_name
-        # self.ECR_REPO = ecr_repo
+        self.S3_BUCKET_RAW = s3_bucket_raw
+        self.S3_BUCKET_STAGE = s3_bucket_stage
 
         # outputs
         CfnOutput(

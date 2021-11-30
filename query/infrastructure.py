@@ -3,6 +3,8 @@ from constructs import Construct
 from aws_cdk import (
     aws_athena as athena,
     aws_ec2 as ec2,
+    aws_events as events,
+    aws_events_targets as targets,
     aws_iam as iam,
     aws_s3 as s3,
     aws_redshift as redshift,
@@ -34,15 +36,25 @@ class Athena(Stack):
         # create s3 bucket for athena results
         s3_bucket_athena = s3.Bucket(
             self,
-            "s3_bucket_athena",
+            "athena",
             encryption=s3.BucketEncryption.S3_MANAGED,
             public_read_access=False,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             removal_policy=RemovalPolicy.DESTROY,
             auto_delete_objects=True,
-            #    server_access_logs_bucket=s3_bucket_logs,
         )
 
+        # event rule to send athena events
+        #glue_table_events = events.Rule(
+        #    self,
+        #    "glue_table_events",
+        #    description="Glue table updates to openlineage",
+        #    targets=[targets.LambdaFunction(athena_lineage_lambda)],
+        #    event_pattern={
+        #        "source": ["aws.glue"],
+        #        "detail_type": ["Glue Data Catalog Table State Change"],
+        #    },
+        #)
 
 class Redshift(Stack):
     """create crawlers for the s3 buckets"""

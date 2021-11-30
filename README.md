@@ -75,6 +75,36 @@ Create a glue database and glue crawler
 npx cdk deploy cdkdl-dev/batch/glue
 ```
 
+After deploying the stack we need to update the openlineage security group to the glue connection security group.  
+
+Security Group: openlineage security group
+Type: Custom TCP
+Port Range: 5000
+Source: Glue connection sg
+Description: glue connection to lineage 
+
+Security Group: openlineage security group
+Type: Custom TCP
+Port Range: 5000
+Source: Glue lineage lambda sg
+Description: glue lambda to lineage 
+
+Create the Spark UI
+```bash
+# build the image
+cd batch/runtime/sparkui
+docker build -t glue/sparkui:latest . 
+# run the server
+# set log dir to output path s3-bucket-spark-logs
+LOG_DIR="s3a://cdkdl-dev-batchgluebb9040d3-s3bucketsparkee88c9bc-o56kii9tg57f/logs/"
+# assumes using default profile
+PROFILE_NAME="default"
+docker run -itd -v ~/.aws:/root/.aws -e AWS_PROFILE=$PROFILE_NAME -e SPARK_HISTORY_OPTS="$SPARK_HISTORY_OPTS -Dspark.history.fs.logDirectory=$LOG_DIR  -Dspark.hadoop.fs.s3a.aws.credentials.provider=com.amazonaws.auth.DefaultAWSCredentialsProviderChain" -p 18080:18080 glue/sparkui:latest "/opt/spark/bin/spark-class org.apache.spark.deploy.history.HistoryServer"
+```
+
+View the Spark UI using Docker
+Open http://localhost:18080 in your browser
+
 
 -----
 

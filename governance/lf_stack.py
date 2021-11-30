@@ -94,8 +94,8 @@ class LfStack(core.Stack):
 
             lf.CfnResource(
                 self,
-                "s3_bucket_processed_register",
-                resource_arn=constants["s3_bucket_processed"].bucket_arn,
+                "s3_bucket_stage_register",
+                resource_arn=constants["s3_bucket_stage"].bucket_arn,
                 use_service_linked_role=True,
                 role_arn=lf_admin.role_arn,
             )
@@ -116,11 +116,11 @@ class LfStack(core.Stack):
                 location_uri=f"s3://{constants['s3_bucket_raw'].bucket_name}",
             )
 
-            dl_db_processed = glue.Database(
+            dl_db_stage = glue.Database(
                 self,
-                "dl_db_processed",
-                database_name="dl_processed",
-                location_uri=f"s3://{constants['s3_bucket_processed'].bucket_name}",
+                "dl_db_stage",
+                database_name="dl_stage",
+                location_uri=f"s3://{constants['s3_bucket_stage'].bucket_name}",
             )
 
             dl_db_serving = glue.Database(
@@ -132,7 +132,7 @@ class LfStack(core.Stack):
 
             self.output_props = {}
             self.output_props["dl_db_raw"] = dl_db_raw
-            self.output_props["dl_db_processed"] = dl_db_processed
+            self.output_props["dl_db_stage"] = dl_db_stage
             self.output_props["dl_db_serving"] = dl_db_serving
 
         else:

@@ -129,7 +129,7 @@ class Lineage(Stack):
                             # start marquez
                             # start not working as docker compose not recognized?
                             ec2.InitCommand.shell_command(
-                                "sudo -u ec2-user ./docker/up.sh --seed --detach",
+                                "sudo -u ec2-user ./docker/up.sh --detach",
                                 cwd="/home/ec2-user/marquez",
                                 ignore_errors=True,
                             ),
@@ -166,6 +166,12 @@ class Lineage(Stack):
             "OpenlineageApi",
             value=f"http://{lineage_instance.instance_public_dns_name}:5000",
             export_name="openlineage-api",
+        )
+        CfnOutput(
+            self,
+            "OpenlineageSg",
+            value=lineage_sg.security_group_id,
+            export_name="openlineage-sg",
         )
 
 

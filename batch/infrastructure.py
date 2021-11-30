@@ -5,17 +5,17 @@ from constructs import Construct
 from aws_cdk import (
     Duration,
     aws_ec2 as ec2,
-    aws_ecr_assets as ecr_assets,
     aws_emr as emr,
     aws_events as events,
     aws_events_targets as targets,
     aws_glue as glue,
     aws_iam as iam,
-    aws_lakeformation as lf,
     aws_lambda as _lambda,
     aws_s3 as s3,
     aws_s3_assets as s3_assets,
+    aws_s3_deployment as s3_deploy,
     Aws,
+    CfnOutput,
     RemovalPolicy,
     Stack,
 )
@@ -34,10 +34,8 @@ class Glue(Stack):
         scope: Construct,
         id: str,
         *,
-        S3_BUCKET_PROCESSED_ARN: str,
-        S3_BUCKET_PROCESSED_NAME: str,
-        S3_BUCKET_RAW_ARN: str,
-        S3_BUCKET_RAW_NAME: str,
+        S3_BUCKET_RAW: s3.Bucket,
+        S3_BUCKET_STAGE: s3.Bucket,
         GLUE_DB_PREFIX: str,
         OPENLINEAGE_API: str,
         OPENLINEAGE_NAMESPACE: str,
@@ -45,10 +43,20 @@ class Glue(Stack):
     ):
         super().__init__(scope, id)
 
-        # to send lineage data to openlineage
-        tablelineage_lambda = _lambda.DockerImageFunction(
+
+        # glue lineage lambda sg
+        glue_lineage_lambda_sg = ec2.SecurityGroup(
             self,
-            "tablelineage_lambda",
+            "glue_lineage_lambda_sg",
+            vpc=VPC,
+            description="Glue lineage lambda sg",
+            allow_all_outbound=True,
+        )
+
+        # to send lineage data to openlineage
+        glue_lineage_lambda = _lambda.DockerImageFunction(
+            self,
+            "glue_lineage_lambda",
             code=_lambda.DockerImageCode.from_image_asset(
                 str(Path(__file__).parent.joinpath("runtime/tablelineage"))
             ),
@@ -58,6 +66,7 @@ class Glue(Stack):
                 "OPENLINEAGE_NAMESPACE": OPENLINEAGE_NAMESPACE,
             },
             log_retention=RetentionDays.ONE_WEEK,
+            security_group=glue_lineage_lambda_sg,
             timeout=Duration.seconds(30),
             vpc=VPC,
         )
@@ -68,14 +77,14 @@ class Glue(Stack):
             resources=["*"],
         )
         # add the role permissions
-        tablelineage_lambda.add_to_role_policy(statement=tablelineage_lambda_policy)
+        glue_lineage_lambda.add_to_role_policy(statement=tablelineage_lambda_policy)
 
         # event rule to send to tablelineage_lambda
-        tableevents = events.Rule(
+        glue_table_events = events.Rule(
             self,
-            "tablevents",
+            "glue_table_events",
             description="Glue table updates to openlineage",
-            targets=[targets.LambdaFunction(tablelineage_lambda)],
+            targets=[targets.LambdaFunction(glue_lineage_lambda)],
             event_pattern={
                 "source": ["aws.glue"],
                 "detail_type": ["Glue Data Catalog Table State Change"],
@@ -92,6 +101,38 @@ class Glue(Stack):
         )
         database.apply_removal_policy(policy=RemovalPolicy.DESTROY)
 
+        # glue connection sg
+        glue_connection_sg = ec2.SecurityGroup(
+            self,
+            "glue_connection_sg",
+            vpc=VPC,
+            description="Glue connection sg",
+            allow_all_outbound=True,
+        )
+        # glue sg self-rule
+        glue_connection_sg.connections.allow_internally(
+            ec2.Port.all_traffic(), "within Glue connection sg"
+        )
+
+        # glue connection
+        glue_lineage_connection = glue.CfnConnection(
+            self,
+            "glue_lineage_connection",
+            catalog_id=Aws.ACCOUNT_ID,
+            connection_input=glue.CfnConnection.ConnectionInputProperty(
+                connection_type="NETWORK",
+                description="Glue network path to openlineage api",
+                physical_connection_requirements=glue.CfnConnection.PhysicalConnectionRequirementsProperty(
+                    availability_zone=VPC.availability_zones[0],
+                    security_group_id_list=[glue_connection_sg.security_group_id],
+                    subnet_id=VPC.select_subnets(
+                        subnet_type=ec2.SubnetType.PRIVATE,
+                        availability_zones=[VPC.availability_zones[0]],
+                    ).subnet_ids[0],
+                ),
+            ),
+        )
+
         # glue crawler role
         crawler_role = iam.Role(
             self,
@@ -100,17 +141,12 @@ class Glue(Stack):
             inline_policies=[
                 iam.PolicyDocument(
                     statements=[
-                        # iam.PolicyStatement(
-                        #    effect=iam.Effect.ALLOW,
-                        #    actions=["lakeformation:GetDataAccess"],
-                        #    resources=["*"],
-                        # ),
                         iam.PolicyStatement(
                             effect=iam.Effect.ALLOW,
                             actions=["s3:*"],
                             resources=[
-                                S3_BUCKET_RAW_ARN,
-                                f"{S3_BUCKET_RAW_ARN}/*",
+                                S3_BUCKET_RAW.bucket_arn,
+                                f"{S3_BUCKET_RAW.bucket_arn}/*",
                             ],
                         ),
                     ]
@@ -123,62 +159,56 @@ class Glue(Stack):
             ],
         )
 
-        # permisisons if lf
-        # if constants["PERMISSIONS"] == "Lake Formation":
-        #     # lf database permissions for the crawler role
-        #    lf.CfnPermissions(
-        #       self,
-        #      "crawler_role_db_permissions",
-        #         data_lake_principal=lf.CfnPermissions.DataLakePrincipalProperty(
-        #            data_lake_principal_identifier=crawler_role.role_arn
-        #        ),
-        #        resource=lf.CfnPermissions.ResourceProperty(
-        #            database_resource=lf.CfnPermissions.DatabaseResourceProperty(
-        #                name=constants["dl_db_raw"].database_name
-        #            )
-        #        ),
-        #        permissions=["ALTER", "CREATE_TABLE", "DROP"],
-        #    )
-        #
-        #            # lf location permissions for the crawler role
-        #            lf.CfnPermissions(
-        #                self,
-        #                "crawler_role_loc_permissions",
-        #                data_lake_principal=lf.CfnPermissions.DataLakePrincipalProperty(
-        #                    data_lake_principal_identifier=crawler_role.role_arn
-        #                ),
-        #                resource=lf.CfnPermissions.ResourceProperty(
-        #                    data_location_resource=lf.CfnPermissions.DataLocationResourceProperty(
-        #                        s3_resource=constants["s3_bucket_raw"].bucket_arn
-        #                    )
-        #                ),
-        #                permissions=["DATA_LOCATION_ACCESS"],
-        #            )
-        #
         # the raw bucket crawler
         crawler_raw = glue.CfnCrawler(
             self,
             "crawler_raw",
             targets=glue.CfnCrawler.TargetsProperty(
-                s3_targets=[glue.CfnCrawler.S3TargetProperty(path=S3_BUCKET_RAW_NAME)],
+                s3_targets=[
+                    glue.CfnCrawler.S3TargetProperty(path=S3_BUCKET_RAW.bucket_name)
+                ],
             ),
-            # classifiers=[customer_classifier.csv_classifier.name],
             database_name=glue_db_name,
             role=crawler_role.role_name,
         )
 
+        # nyc-taxi glue job
         # upload the glue script
-        # log generator asset
-        glue_job_processed_script = s3_assets.Asset(
+        glue_job_stage_script = s3_assets.Asset(
             self,
-            "glue_job_processed_script",
-            path=str(Path(dirname).joinpath("runtime/rawtoprocessed/app.py")),
+            "glue_job_stage_script",
+            path=str(Path(dirname).joinpath("runtime/rawtostage/app.py")),
+        )
+
+        # create s3 bucket for spark
+        s3_bucket_spark = s3.Bucket(
+            self,
+            "spark",
+            encryption=s3.BucketEncryption.S3_MANAGED,
+            public_read_access=False,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            removal_policy=RemovalPolicy.DESTROY,
+            auto_delete_objects=True,
+        )
+
+        # deploy openlineage jar to spark bucket
+        s3_deploy.BucketDeployment(
+            self,
+            "xyz",
+            destination_bucket=s3_bucket_spark,
+            destination_key_prefix="jars",
+            sources=[
+                s3_deploy.Source.asset(
+                    str(Path(__file__).parent.joinpath("runtime/rawtostage")),
+                    exclude=["**", "!openlineage-spark-0.3.1.jar"],
+                )
+            ],
         )
 
         # role for glue job
-        glue_job_processed_role = iam.Role(
+        glue_job_stage_role = iam.Role(
             self,
-            "glue_job_processed_role",
+            "glue_job_stage_role",
             assumed_by=iam.ServicePrincipal("glue.amazonaws.com"),
             inline_policies=[
                 iam.PolicyDocument(
@@ -187,10 +217,12 @@ class Glue(Stack):
                             effect=iam.Effect.ALLOW,
                             actions=["s3:*"],
                             resources=[
-                                S3_BUCKET_RAW_ARN,
-                                f"{S3_BUCKET_RAW_ARN}/*",
-                                S3_BUCKET_PROCESSED_ARN,
-                                f"{S3_BUCKET_PROCESSED_ARN}/*",
+                                S3_BUCKET_RAW.bucket_arn,
+                                f"{S3_BUCKET_RAW.bucket_arn}/*",
+                                S3_BUCKET_STAGE.bucket_arn,
+                                f"{S3_BUCKET_STAGE.bucket_arn}/*",
+                                s3_bucket_spark.bucket_arn,
+                                f"{s3_bucket_spark.bucket_arn}/*",
                             ],
                         ),
                     ]
@@ -202,30 +234,68 @@ class Glue(Stack):
                 ),
             ],
         )
-        glue_job_processed_script.grant_read(glue_job_processed_role)
+        glue_job_stage_script.grant_read(glue_job_stage_role)
 
-        # create glue job for raw to processed
-        glue_job_processed = glue.CfnJob(
+        # create glue job for raw to stage
+        glue_job_stage = glue.CfnJob(
             self,
-            "glue_job_processed",  # default_arguments={"--conf": "", "--conf": ""}
+            "glue_job_stage",
+            connections=glue.CfnJob.ConnectionsListProperty(
+                connections=[
+                    glue_lineage_connection.ref,
+                ]
+            ),
             command=glue.CfnJob.JobCommandProperty(
                 name="glueetl",
                 python_version="3",
-                script_location=glue_job_processed_script.s3_object_url,
+                script_location=glue_job_stage_script.s3_object_url,
             ),
             default_arguments={
+                # variables for script
                 "--GLUE_DATABASE": glue_db_name,
-                "--S3_BUCKET_RAW": S3_BUCKET_RAW_NAME,
-                "--S3_BUCKET_PROCESSED": S3_BUCKET_PROCESSED_NAME,
-                "--spark.openlineage.host": OPENLINEAGE_API,
-                "--spark.openlineage.namespace": OPENLINEAGE_NAMESPACE,
-                "--spark.jars.packages": "io.openlineage:openlineage-spark:0.3.+",
-                "--spark.extraListeners": "io.openlineage.spark.agent.OpenLineageSparkListener",
+                "--S3_BUCKET_RAW": S3_BUCKET_RAW.bucket_name,
+                "--S3_BUCKET_STAGE": S3_BUCKET_STAGE.bucket_name,
+                "--OPENLINEAGE_HOST": OPENLINEAGE_API,
+                # settings
                 "--enable-continuous-cloudwatch-log": "true",
+                "--enable-continuous-log-filter": "false",
+                "--enable-spark-ui": "true",
+                "--spark-event-logs-path": f"s3://{s3_bucket_spark.bucket_name}/logs",
+                "--extra-jars": f"s3://{s3_bucket_spark.bucket_name}/jars/openlineage-spark-0.3.1.jar",
+                # The SparkListener reads its configuration from SparkConf parameters
+                "--conf": f"spark.openlineage.host={OPENLINEAGE_API}",
+                "--conf": "spark.openlineage.version=1",
+                "--conf": f"spark.openlineage.namespace={OPENLINEAGE_NAMESPACE}",
+                "--conf": f"spark.openlineage.parentJobName=nyc-taxi-raw-stage",
+                "--conf": f"spark.openlineage.parentRunId=nyc-taxi-raw-stage",
             },
             description="Process nyc-taxi raw to curated",
             glue_version="3.0",
-            role=glue_job_processed_role.role_name,
+            name="nyc-taxi-raw-stage",
+            role=glue_job_stage_role.role_name,
+        )
+        
+
+        # outputs
+        # need to add glue connection sg path to openlineage sg
+        CfnOutput(
+            self,
+            "GlueLineageLambdaSg",
+            value=glue_lineage_lambda_sg.security_group_id,
+            export_name="glue-lineage-lambda-sg",
+        )
+        CfnOutput(
+            self,
+            "GlueConnectionSg",
+            value=glue_connection_sg.security_group_id,
+            export_name="glue-connection-sg",
+        )
+        CfnOutput(
+            self,
+            "S3BucketSparkLogs",
+            # note s3a is correct here
+            value=f"s3a://{s3_bucket_spark.bucket_name}/logs",
+            export_name="s3-bucket-spark-logs",
         )
 
 

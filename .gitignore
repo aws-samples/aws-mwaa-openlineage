@@ -152,3 +152,4 @@ cdk.out/
 # for mac
 *.DS_Store*
 s3:cdkdl-dev-foundationstoragef3-s3bucketraw88473b86-cxz3i1e716d3/nyctaxi/green_tripdata_2020-06.csv
+batch/runtime/rawtostage/openlineage-spark-0.3.1.jar
