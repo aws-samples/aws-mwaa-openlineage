@@ -80,7 +80,7 @@ class Storage(Stack):
         )
         Tags.of(s3_bucket_stage).add("purpose", "STAGE")
 
-        # create s3 bucket for servicing
+        # create s3 bucket for analytics
         s3_bucket_analytics = s3.Bucket(
             self,
             "analytics",

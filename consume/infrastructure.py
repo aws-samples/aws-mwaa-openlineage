@@ -181,3 +181,43 @@ class Redshift(Stack):
             ),
             description=f"Redshift Cluster Password in Secrets Manager",
         )
+
+class SageMaker(Stack):
+    """create crawlers for the s3 buckets"""
+
+    def __init__(
+        self,
+        scope: Construct,
+        id: str,
+        VPC=ec2.Vpc,
+    ):
+        super().__init__(scope, id)
+
+        # create the vpc endpoint for sagemaker
+        #VPC.add_interface_endpoint(
+        #    "sagemaker",
+        #    service=ec2.InterfaceVpcEndpointAwsService(name="sagemaker"),
+        #)
+
+        # create s3 bucket for athena results
+        #s3_bucket_athena = s3.Bucket(
+        #    self,
+        #    "athena",
+        #    encryption=s3.BucketEncryption.S3_MANAGED,
+        #    public_read_access=False,
+        #    block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+        #    removal_policy=RemovalPolicy.DESTROY,
+        #    auto_delete_objects=True,
+        #)
+
+        # event rule to send athena events
+        #glue_table_events = events.Rule(
+        #    self,
+        #    "glue_table_events",
+        #    description="Glue table updates to openlineage",
+        #    targets=[targets.LambdaFunction(athena_lineage_lambda)],
+        #    event_pattern={
+        #        "source": ["aws.glue"],
+        #        "detail_type": ["Glue Data Catalog Table State Change"],
+        #    },
+        #)

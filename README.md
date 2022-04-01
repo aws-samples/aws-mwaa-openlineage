@@ -54,15 +54,22 @@ npx cdk deploy cdkdl-dev/governance/lineage
 
 Follow up actions:
 1. Connect to the openlineage UX at: Outputs > <LineageUI>
-2. Create a secret in AWS Secrets Manager:
-    1. key = "airflow/variables/AIRFLOW__LINEAGE__BACKEND"
-    2. value = "openlineage.lineage_backend.OpenLineageBackend"
+2. Create a secret (type="Other type of secret") in AWS Secrets Manager:
+   1. Type = "Other type of secret"
+   2. Plaintext = "openlineage.lineage_backend.OpenLineageBackend"
+   2. Secret name = airflow/variables/AIRFLOW__LINEAGE__BACKEND
+   4. Secret rotation = No
 3. Create a secret in AWS Secrets Manager:
-    1. key = "airflow/variables/OPENLINEAGE_URL"
-    2. value = <OpenlineageAPI>
+   1. Type = "Other type of secret"
+   2. Plaintext = "<OpenlineageAPI>"
+   3. Secret name = airflow/variables/OPENLINEAGE_URL
+   4. Secret rotation = No
+
 4. Create a secret in AWS Secrets Manager:
-    1. key = "airflow/variables/OPENLINEAGE_NAMESPACE"
-    2. value = "cdkdl-dev"
+   1. Type = "Other type of secret"
+   2. Plaintext = "cdkdl-dev"
+   3. Secret Name = airflow/variables/OPENLINEAGE_NAMESPACE
+   4. Secret rotation = No
 
 -----
 

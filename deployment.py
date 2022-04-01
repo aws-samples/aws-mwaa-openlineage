@@ -11,7 +11,7 @@ import constants
 from foundation.infrastructure import Storage
 from governance.infrastructure import Lineage
 from orchestration.infrastructure import MWAA, MWAALocalRunner
-from query.infrastructure import Athena, Redshift
+from consume.infrastructure import Athena, Redshift, SageMaker
 from batch.infrastructure import EMR, Glue
 
 
@@ -64,15 +64,15 @@ class CDKDataLake(Stage):
             VPC=storage.VPC,
         )
 
-        # query
-        query = Stack(self, "query")
+        # consume
+        consume = Stack(self, "consume")
         athena = Athena(
-            query,
+            consume,
             "athena",
             VPC=storage.VPC,
         )
         redshift = Redshift(
-            query,
+            consume,
             "redshift",
             VPC=storage.VPC,
             REDSHIFT_DB_NAME=constants.DEV_REDSHIFT_DB_NAME,
@@ -80,6 +80,11 @@ class CDKDataLake(Stage):
             REDSHIFT_NODE_TYPE=constants.DEV_REDSHIFT_NODE_TYPE,
             REDSHIFT_CLUSTER_TYPE=constants.DEV_REDSHIFT_CLUSTER_TYPE,
             REDSHIFT_MASTER_USERNAME=constants.DEV_REDSHIFT_MASTER_USERNAME,
+        )
+        sagemaker = SageMaker(
+            consume,
+            "sagemaker",
+            VPC=storage.VPC,
         )
 
         # orchestration
