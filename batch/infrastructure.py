@@ -43,7 +43,6 @@ class Glue(Stack):
     ):
         super().__init__(scope, id)
 
-
         # glue lineage lambda sg
         glue_lineage_lambda_sg = ec2.SecurityGroup(
             self,
@@ -66,7 +65,7 @@ class Glue(Stack):
                 "OPENLINEAGE_NAMESPACE": OPENLINEAGE_NAMESPACE,
             },
             log_retention=RetentionDays.ONE_WEEK,
-            security_group=glue_lineage_lambda_sg,
+            security_groups=[glue_lineage_lambda_sg],
             timeout=Duration.seconds(30),
             vpc=VPC,
         )
@@ -126,7 +125,7 @@ class Glue(Stack):
                     availability_zone=VPC.availability_zones[0],
                     security_group_id_list=[glue_connection_sg.security_group_id],
                     subnet_id=VPC.select_subnets(
-                        subnet_type=ec2.SubnetType.PRIVATE,
+                        subnet_type=ec2.SubnetType.PRIVATE_WITH_NAT,
                         availability_zones=[VPC.availability_zones[0]],
                     ).subnet_ids[0],
                 ),
@@ -274,7 +273,6 @@ class Glue(Stack):
             name="nyc-taxi-raw-stage",
             role=glue_job_stage_role.role_name,
         )
-        
 
         # outputs
         # need to add glue connection sg path to openlineage sg
@@ -374,7 +372,7 @@ class EMR(Stack):
                     target_spot_capacity=EMR_CORE_INSTANCE_COUNT,
                 ),
                 ec2_subnet_ids=VPC.select_subnets(
-                    subnet_type=ec2.SubnetType.PRIVATE
+                    subnet_type=ec2.SubnetType.PRIVATE_WITH_NAT
                 ).subnet_ids,
                 hadoop_version="Amazon",
                 keep_job_flow_alive_when_no_steps=False,

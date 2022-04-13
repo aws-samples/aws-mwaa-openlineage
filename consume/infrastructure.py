@@ -134,7 +134,7 @@ class Redshift(Stack):
             self,
             "redshiftDemoClusterSubnetGroup",
             subnet_ids=VPC.select_subnets(
-                subnet_type=ec2.SubnetType.PRIVATE
+                subnet_type=ec2.SubnetType.PRIVATE_WITH_NAT
             ).subnet_ids,
             description="Redshift Demo Cluster Subnet Group",
         )

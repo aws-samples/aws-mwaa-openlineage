@@ -1,6 +1,10 @@
 # import modules
+from charset_normalizer import from_path
 from constructs import Construct
 from aws_cdk import (
+    aws_codecommit as codecommit,
+    aws_codepipeline as codepipeline,
+    aws_codepipeline_actions as codepipeline_actions,
     aws_ec2 as ec2,
     aws_s3 as s3,
     aws_s3_deployment as s3_deploy,
@@ -21,129 +25,6 @@ from pathlib import Path
 dirname = Path(__file__).parent
 
 
-class MWAALocalRunner(Stack):
-
-    """
-    create instance for local runner and install it
-    open ports to lineage and redshift
-    """
-
-    def __init__(
-        self,
-        scope: Construct,
-        id: str,
-        # OPENLINEAGE_SG: ec2.SecurityGroup,
-        # REDSHIFT_SG: ec2.SecurityGroup,
-        VPC=ec2.Vpc,
-        EXTERNAL_IP=None,
-    ):
-        super().__init__(scope, id)
-
-        # sg for the instance
-        localrunner_sg = ec2.SecurityGroup(
-            self, "localrunner_sg", vpc=VPC, description="local runner instance sg"
-        )
-
-        # Open port 22 for SSH
-        for port in [22]:
-            localrunner_sg.add_ingress_rule(
-                ec2.Peer.ipv4(f"{EXTERNAL_IP}/32"),
-                ec2.Port.tcp(port),
-                "local runner from external ip",
-            )
-
-        # OPENLINEAGE_SG.connections.allow_from(
-        #     localrunner_sg, ec2.Port.tcp(5000), "local runner to Openlineage"
-        # )
-
-        # REDSHIFT_SG.connections.allow_from(
-        #     localrunner_sg, ec2.Port.tcp(5439), "local runner to Redshift"
-        # )
-
-        # role for instance
-        localrunner_instance_role = iam.Role(
-            self,
-            "localrunner_instance_role",
-            assumed_by=iam.ServicePrincipal("ec2.amazonaws.com"),
-            managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "CloudWatchAgentServerPolicy"
-                ),
-            ],
-        )
-        # instance for dev
-        localrunner_instance = ec2.Instance(
-            self,
-            "dev_instance",
-            instance_type=ec2.InstanceType("t2.xlarge"),
-            machine_image=ec2.AmazonLinuxImage(
-                generation=ec2.AmazonLinuxGeneration.AMAZON_LINUX_2
-            ),
-            vpc=VPC,
-            vpc_subnets={"subnet_type": ec2.SubnetType.PUBLIC},
-            key_name="newKeyPair",
-            role=localrunner_instance_role,
-            security_group=localrunner_sg,
-            init=ec2.CloudFormationInit.from_config_sets(
-                config_sets={"default": ["prereqs"]},
-                # order: packages -> groups -> users-> sources -> files -> commands -> services
-                configs={
-                    "prereqs": ec2.InitConfig(
-                        [
-                            # update yum
-                            ec2.InitCommand.shell_command("yum update -y"),
-                            ec2.InitCommand.shell_command("yum upgrade -y"),
-                            ec2.InitCommand.shell_command("yum install -y awslogs"),
-                            ec2.InitCommand.shell_command("systemctl start awslogsd"),
-                            ec2.InitCommand.shell_command(
-                                "amazon-linux-extras install epel"
-                            ),
-                            # push logs to cloudwatch with agent
-                            ec2.InitPackage.yum("amazon-cloudwatch-agent"),
-                            # ec2.InitService.enable("amazon-cloudwatch-agent"),
-                            # missing setup here to export aws logs?
-                            ec2.InitCommand.shell_command(
-                                "/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s"
-                            ),
-                            # need git to clone marquez
-                            ec2.InitPackage.yum("git"),
-                            # pre-requisites for marquez
-                            ec2.InitPackage.yum("docker"),
-                            ec2.InitService.enable("docker"),
-                            # install pip to get docker-compose
-                            ec2.InitCommand.shell_command(
-                                "yum -y install python-pip",
-                            ),
-                            ec2.InitCommand.shell_command(
-                                "python3 -m pip install docker-compose",
-                            ),
-                            ec2.InitCommand.shell_command(
-                                "ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose"
-                            ),
-                            # add ec2-user to docker group
-                            ec2.InitCommand.shell_command(
-                                "usermod -aG docker ec2-user",
-                            ),
-                            # kick the groups to add ec2-user to docker
-                            ec2.InitCommand.shell_command("sudo -u ec2-user newgrp"),
-                        ]
-                    ),
-                },
-            ),
-            init_options={
-                "config_sets": ["default"],
-                "timeout": Duration.minutes(30),
-            },
-        )
-        # create Outputs
-        CfnOutput(
-            self,
-            "LocalRunnerSSH",
-            value=f"ssh -i ~/Downloads/newKeyPair.pem ec2-user@{localrunner_instance.instance_public_dns_name}",
-            export_name="localrunner-ssh",
-        )
-
-
 class MWAA(Stack):
     """
     create s3 buckets for mwaa
@@ -160,6 +41,7 @@ class MWAA(Stack):
         # REDSHIFT_SG: ec2.SecurityGroup,
         MWAA_REQUIREMENTS_VERSION: str,
         MWAA_PLUGINS_VERSION: str,
+        MWAA_REPO_DAG_NAME: str,
         VPC=ec2.Vpc,
         MWAA_DEPLOY_FILES: bool = False,
     ):
@@ -179,6 +61,19 @@ class MWAA(Stack):
         # tag the bucket
         Tags.of(s3_bucket_mwaa).add("purpose", "MWAA")
 
+        # deploy files to mwaa bucket
+        if MWAA_DEPLOY_FILES:
+            airflow_files = s3_deploy.BucketDeployment(
+                self,
+                "deploy_requirements",
+                destination_bucket=s3_bucket_mwaa,
+                sources=[
+                    s3_deploy.Source.asset("./orchestration/runtime/mwaa/"),
+                ],
+                include=["requirements.txt", "plugins.zip"],
+                exclude=["requirements.in", "dags/*", "dags.zip", "plugins/*"],
+            )
+
         # create vpc endpoints for mwaa
         mwwa_api_endpoint = VPC.add_interface_endpoint(
             "mwaa_api_endpoint",
@@ -192,18 +87,6 @@ class MWAA(Stack):
             "mwaa_ops_endpoint",
             service=ec2.InterfaceVpcEndpointAwsService(name="airflow.ops"),
         )
-
-        # deploy files to mwaa bucket
-        if MWAA_DEPLOY_FILES:
-            airflow_files = s3_deploy.BucketDeployment(
-                self,
-                "deploy_requirements",
-                destination_bucket=s3_bucket_mwaa,
-                sources=[
-                    s3_deploy.Source.asset("./orchestration/runtime/mwaa/"),
-                ],
-                include=["requirements.txt", "plugins.zip", "dags/*"],
-            )
 
         # role for mwaa
         airflow_role = iam.Role(
@@ -299,7 +182,7 @@ class MWAA(Stack):
             ],
         )
 
-        # mwaa security group
+        # # mwaa security group
         airflow_sg = ec2.SecurityGroup(
             self, "airflow_sg", vpc=VPC, description="MWAA sg"
         )
@@ -307,9 +190,9 @@ class MWAA(Stack):
         airflow_sg.connections.allow_internally(ec2.Port.all_traffic(), "within MWAA")
 
         # add path to openlineage
-        # OPENLINEAGE_SG.connections.allow_from(
-        #    airflow_sg, ec2.Port.tcp(5000), "MWAA to Openlineage"
-        # )
+        #OPENLINEAGE_SG.connections.allow_from(
+        #   airflow_sg, ec2.Port.tcp(5000), "MWAA to Openlineage"
+        #)
         # add path to redshift
         # REDSHIFT_SG.connections.allow_from(
         #    airflow_sg, ec2.Port.tcp(5439), "MWAA to Redshift"
@@ -337,12 +220,12 @@ class MWAA(Stack):
             plugins_s3_path="plugins.zip",
             plugins_s3_object_version=MWAA_PLUGINS_VERSION,
             requirements_s3_path="requirements.txt",
-            requirements_s3_object_version=MWAA_REQUIREMENTS_VERSION,
+            # requirements_s3_object_version=MWAA_REQUIREMENTS_VERSION,
             source_bucket_arn=s3_bucket_mwaa.bucket_arn,
             network_configuration=mwaa.CfnEnvironment.NetworkConfigurationProperty(
                 security_group_ids=[airflow_sg.security_group_id],
                 subnet_ids=VPC.select_subnets(
-                    subnet_type=ec2.SubnetType.PRIVATE,
+                    subnet_type=ec2.SubnetType.PRIVATE_WITH_NAT,
                 ).subnet_ids[:2],
             ),
             execution_role_arn=airflow_role.role_arn,
@@ -360,41 +243,52 @@ class MWAA(Stack):
         if MWAA_DEPLOY_FILES:
             airflow_env.node.add_dependency(airflow_files)
 
-        # create secrets for MWAA config
-        # mwaa_secret_lineage_backend = _sm.Secret(
-        #    self,
-        #    "mwaa_secret_lineage_backend",
-        #    description="MWAA lineage backend",
-        #    secret_name="airflow/variables/AIRFLOW__LINEAGE__BACKEND",
-        #    # secret_value = "openlineage.lineage_backend.OpenLineageBackend"
-        #    removal_policy=RemovalPolicy.DESTROY,
-        # )
-        # mwaa_secret_openlineage_url = _sm.Secret(
-        #    self,
-        #    "mwaa_secret_openlineage_url",
-        #    description="Openlineage url",
-        #    secret_name="airflow/variables/OPENLINEAGE_URL",
-        #    # secret_value = "openlineage.lineage_backend.OpenLineageBackend"
-        #    removal_policy=RemovalPolicy.DESTROY,
-        # )
-        # mwaa_secret_openlineage_namespace = _sm.Secret(
-        #    self,
-        #    "mwaa_secret_openlineage_namespace",
-        #    description="Openlineage namespace",
-        #    secret_name="airflow/variables/OPENLINEAGE_NAMESPACE",
-        #    # secret_value = "openlineage.lineage_backend.OpenLineageBackend"
-        #    removal_policy=RemovalPolicy.DESTROY,
-        # )
-        #
-        #        # create the connection string for MWAA to Redshift
-        #        mwaa_redshift_connection_string = _sm.Secret(
-        #            self,
-        #            "mwaa_redshift_connection_string",
-        #            description="MWAA Redshift Connection",
-        #            secret_name="airflow/connections/REDSHIFT_CONNECTOR",
-        #            removal_policy=RemovalPolicy.DESTROY,
-        #        )
+        # repo for dag code
+        repo_dag = codecommit.Repository(
+            self,
+            "repo_dag",
+            repository_name=MWAA_REPO_DAG_NAME,
+            description="MWAA Dag",
+            code=codecommit.Code.from_directory(
+                str(dirname.joinpath("runtime/mwaa/dags")),
+                "main",
+            ),
+        )
 
+        # # deploy dags
+        source_output = codepipeline.Artifact()
+        deploy_dags = codepipeline.Pipeline(
+            self,
+            "deploy_dags",
+            stages=[
+                codepipeline.StageProps(
+                    stage_name="Build",
+                    actions=[
+                        codepipeline_actions.CodeCommitSourceAction(
+                            action_name="DagsBuild",
+                            repository=repo_dag,
+                            branch="main",
+                            output=source_output,
+                            trigger=codepipeline_actions.CodeCommitTrigger.POLL,
+                            run_order=1,
+                        )
+                    ],
+                ),
+                codepipeline.StageProps(
+                    stage_name="Deploy",
+                    actions=[
+                        codepipeline_actions.S3DeployAction(
+                            action_name="S3Deploy",
+                            bucket=s3_bucket_mwaa,
+                            input=source_output,
+                            run_order=2,
+                        )
+                    ],
+                ),
+            ],
+        )
+
+        # output the airflow ux
         CfnOutput(
             self,
             "MWAAWebserverUrl",

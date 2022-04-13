@@ -15,7 +15,8 @@ from pathlib import Path
 dirname = Path(__file__).parent
 
 
-class Storage(Stack):
+
+class S3(Stack):
     """
     create the vpc
     create an s3 vpc endpoint

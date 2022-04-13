@@ -25,7 +25,7 @@ autoflake==1.4
     # via openapi-python-client
 backcall==0.2.0
     # via ipython
-backports.zoneinfo==0.2.1
+backports-zoneinfo==0.2.1
     # via
     #   pytz-deprecation-shim
     #   tzlocal
@@ -290,10 +290,10 @@ rfc3986[idna2008]==1.5.0
     # via httpx
 rsa==4.7.2
     # via google-auth
-ruamel.yaml==0.17.17
+ruamel-yaml==0.17.17
     # via great-expectations
-ruamel.yaml.clib==0.2.6
-    # via ruamel.yaml
+ruamel-yaml-clib==0.2.6
+    # via ruamel-yaml
 scipy==1.7.1
     # via great-expectations
 send2trash==1.8.0

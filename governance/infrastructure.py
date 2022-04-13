@@ -35,7 +35,7 @@ class Lineage(Stack):
 
         # lineage sg
         lineage_sg = ec2.SecurityGroup(
-            self, "lineage_sg", vpc=VPC, description="Lineage instance sg"
+            self, "lineage_sg", vpc=VPC, description="OpenLineage instance sg"
         )
 
         # Open port 22 for SSH

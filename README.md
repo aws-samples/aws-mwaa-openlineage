@@ -36,7 +36,7 @@ The foundation stack also
 
 ```bash
 # deploy the storage stack
-npx cdk deploy cdkdl-dev/foundation/storage
+npx cdk deploy cdkdl-dev/storage/s3
 ```
 
 Copy the new york taxi data into the s3 bucket using the stack output <nytaxicopy> 
@@ -52,20 +52,19 @@ Deploy marquez into a docker container running on EC2 as a UI for openlineage
 npx cdk deploy cdkdl-dev/governance/lineage
 ```
 
-Follow up actions:
+Follow up actions
+
 1. Connect to the openlineage UX at: Outputs > <LineageUI>
-2. Create a secret (type="Other type of secret") in AWS Secrets Manager:
-   1. Type = "Other type of secret"
-   2. Plaintext = "openlineage.lineage_backend.OpenLineageBackend"
-   2. Secret name = airflow/variables/AIRFLOW__LINEAGE__BACKEND
-   4. Secret rotation = No
-3. Create a secret in AWS Secrets Manager:
+2. Create openlineage variables in AWS Secrets Manager
+3. Navigate to AWS Secrets Manager: https://console.aws.amazon.com/secretsmanager/
+4. Select: Store a new secret
+5. Input:
    1. Type = "Other type of secret"
    2. Plaintext = "<OpenlineageAPI>"
    3. Secret name = airflow/variables/OPENLINEAGE_URL
    4. Secret rotation = No
 
-4. Create a secret in AWS Secrets Manager:
+7. Create a secret in AWS Secrets Manager:
    1. Type = "Other type of secret"
    2. Plaintext = "cdkdl-dev"
    3. Secret Name = airflow/variables/OPENLINEAGE_NAMESPACE
@@ -84,34 +83,23 @@ npx cdk deploy cdkdl-dev/batch/glue
 
 After deploying the stack we need to update the openlineage security group to the glue connection security group.  
 
-Security Group: openlineage security group
-Type: Custom TCP
-Port Range: 5000
-Source: Glue connection sg
-Description: glue connection to lineage 
-
-Security Group: openlineage security group
-Type: Custom TCP
-Port Range: 5000
-Source: Glue lineage lambda sg
-Description: glue lambda to lineage 
-
-Create the Spark UI
-```bash
-# build the image
-cd batch/runtime/sparkui
-docker build -t glue/sparkui:latest . 
-# run the server
-# set log dir to output path s3-bucket-spark-logs
-LOG_DIR="s3a://cdkdl-dev-batchgluebb9040d3-s3bucketsparkee88c9bc-o56kii9tg57f/logs/"
-# assumes using default profile
-PROFILE_NAME="default"
-docker run -itd -v ~/.aws:/root/.aws -e AWS_PROFILE=$PROFILE_NAME -e SPARK_HISTORY_OPTS="$SPARK_HISTORY_OPTS -Dspark.history.fs.logDirectory=$LOG_DIR  -Dspark.hadoop.fs.s3a.aws.credentials.provider=com.amazonaws.auth.DefaultAWSCredentialsProviderChain" -p 18080:18080 glue/sparkui:latest "/opt/spark/bin/spark-class org.apache.spark.deploy.history.HistoryServer"
-```
-
-View the Spark UI using Docker
-Open http://localhost:18080 in your browser
-
+1. Navigate to EC2 Security Groups: https://console.aws.amazon.com/ec2/v2/home#SecurityGroups
+2. Security Group Description: OpenLineage instance sg
+3. Select: Inbound Rules
+4. Select: Edit Inbound Rules
+5. Select: Add rule
+6. Input:
+    1. Type: Custom TCP
+    2. Port Range: 5000
+    3. Source: Glue connection sg
+    4. Description: Glue connection to lineage 
+5. Select: Add rule
+6. Input:
+    1. Type: Custom TCP
+    2. Port Range: 5000
+    3. Source: Glue lineage lambda sg
+    4. Description: Glue Lambda to lineage 
+7. Select: Save rules
 
 -----
 
@@ -142,73 +130,36 @@ Follow up actions:
 
 -----
 
-## Orchestration - MWAA local runner 
-
-1. Build an instance to for MWAA local runner 
-
-```bash
-npx cdk deploy cdkdl-dev/orchestration/localrunner
-```
-
-Install the local runner ...
-
-```bash
-git clone https://github.com/aws/aws-mwaa-local-runner.git
-cd aws-mwaa-local-runner
-# build the image
-./mwaa-local-env build-image
-```
-
-To dev files for dev:
-Copy dag files to `aws-mwaa-local-runner/dags/*`
-requirements.txt (or requirements.in) to `aws-mwaa-local-runner/dags/requirements.txt` 
-Plugins to `plugins/*`
-
-In `docker/config/airflow.cfg` set `lazy_load_plugins = False`
-
-```bash
-# test reqirements
-./mwaa-local-env test-requirements
-```
-
-Start the remote airflow local runner
-
-```bash
-./mwaa-local-env start
-```
-
-Next
-`
-1. Enable security group ingress from mwaa local runner to lineage api
-2. Confirm local runner can access lineage
-3. Work out how to debug PostgresOperator
-
-
 ## Orchestration - Amazon Managed Workflows for Apache AirFlow
 
 1. Build the Amazon MWAA S3 bucket
 1. Build the Amazon MWAA Env
 
 ```bash
-# Update the MWAA ENV VAR Plugin env_var_plugin.py
-# SET os.environ["OPENLINEAGE_URL"] = <OPENLINEAGE_API>
-# SET os.environ["OPENLINEAGE_NAMESPACE"] = <namespace>
-```
-
-```bash
 # zip the plugins (if required)
-zip -r ./orchestration/runtime/mwaa/plugins.zip ./orchestration/runtime/mwaa/plugins/
+cd ./orchestration/runtime/mwaa/plugins; zip -r ../plugins.zip ./; cd ../../../../
+cd ./orchestration/runtime/mwaa/plugins; ls; cd ../../../../
 # deploy mwaa
 npx cdk deploy cdkdl-dev/orchestration/mwaa
 # check the requirements loaded correctly ...
 # check the plugins loaded correctly
 ```
 
-Follow up actions:
-1. Open MWAA UX: <MWAAWebserverUrl>
-2. Execute the "hello_world" DAG
+1. Create the network path between MWAA and Openlineage
+1. Navigate to EC2 Security Groups: https://console.aws.amazon.com/ec2/v2/home#SecurityGroups
+2. Security Group Description: OpenLineage instance sg
+3. Select: Inbound Rules
+4. Select: Edit Inbound Rules
+5. Select: Add rule
+6. Input:
+    1. Type: Custom TCP
+    2. Port Range: 5000
+    3. Source: MWAA sg
+    4. Description: MWAA connection to lineage 
+7. Select: Save rules
+8. Open MWAA UX: <MWAAWebserverUrl>
+9. Execute the "hello_world" DAG
     1. Confirm the execution details appear in the openlineage UX
-2. Execute the "hello_postgres" DAG
 
 -----
 
