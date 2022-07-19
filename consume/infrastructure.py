@@ -68,13 +68,10 @@ class Redshift(Stack):
         REDSHIFT_NODE_TYPE: str,
         REDSHIFT_CLUSTER_TYPE: str,
         REDSHIFT_MASTER_USERNAME: str,
+        REDSHIFT_SG: ec2.SecurityGroup,
         VPC=ec2.Vpc,
     ):
         super().__init__(scope, id)
-
-        redshift_sg = ec2.SecurityGroup(
-            self, "redshift_sg", vpc=VPC, description="Redshift sg"
-        )
 
         redshift_password = _sm.Secret(
             self,
@@ -98,7 +95,6 @@ class Redshift(Stack):
             self,
             "spectrum_lake_formation_policy",
             description="Provide access between Redshift Spectrum and Lake Formation",
-            managed_policy_name="RedshiftSpectrumPolicy",
             statements=[
                 iam.PolicyStatement(
                     effect=iam.Effect.ALLOW,
@@ -150,11 +146,8 @@ class Redshift(Stack):
             iam_roles=[redshift_cluster_role.role_arn],
             node_type=REDSHIFT_NODE_TYPE,
             cluster_subnet_group_name=redshift_cluster_subnet_group.ref,
-            vpc_security_group_ids=[redshift_sg.security_group_id],
+            vpc_security_group_ids=[REDSHIFT_SG.security_group_id],
         )
-
-        # self ...
-        self.REDSHIFT_SG = redshift_sg
 
         # outputs
         output_1 = CfnOutput(

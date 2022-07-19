@@ -27,24 +27,12 @@ class Lineage(Stack):
         id: str,
         *,
         VPC: ec2.Vpc,
-        EXTERNAL_IP: str,
         LINEAGE_INSTANCE: ec2.InstanceType,
+        OPENLINEAGE_SG: ec2.SecurityGroup,
         KEY_PAIR: str,
+
     ):
         super().__init__(scope, id)
-
-        # lineage sg
-        lineage_sg = ec2.SecurityGroup(
-            self, "lineage_sg", vpc=VPC, description="OpenLineage instance sg"
-        )
-
-        # Open port 22 for SSH
-        for port in [22, 3000, 5000]:
-            lineage_sg.add_ingress_rule(
-                ec2.Peer.ipv4(f"{EXTERNAL_IP}/32"),
-                ec2.Port.tcp(port),
-                "Lineage from external ip",
-            )
 
         # role for instance
         lineage_instance_role = iam.Role(
@@ -70,7 +58,7 @@ class Lineage(Stack):
             vpc_subnets={"subnet_type": ec2.SubnetType.PUBLIC},
             key_name=KEY_PAIR,
             role=lineage_instance_role,
-            security_group=lineage_sg,
+            security_group=OPENLINEAGE_SG,
             init=ec2.CloudFormationInit.from_config_sets(
                 config_sets={"default": ["prereqs", "marquez"]},
                 # order: packages -> groups -> users-> sources -> files -> commands -> services
@@ -146,7 +134,6 @@ class Lineage(Stack):
         # attributes to share
         self.OPENLINEAGE_URL = lineage_instance.instance_public_dns_name
         self.OPENLINEAGE_API = f"http://{lineage_instance.instance_public_dns_name}:5000"
-        self.OPENLINEAGE_SG = lineage_sg
 
         # create Outputs
         CfnOutput(
@@ -166,12 +153,6 @@ class Lineage(Stack):
             "OpenlineageApi",
             value=f"http://{lineage_instance.instance_public_dns_name}:5000",
             export_name="openlineage-api",
-        )
-        CfnOutput(
-            self,
-            "OpenlineageSg",
-            value=lineage_sg.security_group_id,
-            export_name="openlineage-sg",
         )
 
 

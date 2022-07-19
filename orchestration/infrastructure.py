@@ -42,7 +42,8 @@ class MWAA(Stack):
         MWAA_REQUIREMENTS_VERSION: str,
         MWAA_PLUGINS_VERSION: str,
         MWAA_REPO_DAG_NAME: str,
-        VPC=ec2.Vpc,
+        VPC: ec2.Vpc,
+        AIRFLOW_SG: ec2.SecurityGroup,
         MWAA_DEPLOY_FILES: bool = False,
     ):
         super().__init__(scope, id)
@@ -182,12 +183,7 @@ class MWAA(Stack):
             ],
         )
 
-        # # mwaa security group
-        airflow_sg = ec2.SecurityGroup(
-            self, "airflow_sg", vpc=VPC, description="MWAA sg"
-        )
-        # add access within group
-        airflow_sg.connections.allow_internally(ec2.Port.all_traffic(), "within MWAA")
+        
 
         # add path to openlineage
         #OPENLINEAGE_SG.connections.allow_from(
@@ -218,12 +214,12 @@ class MWAA(Stack):
             },
             dag_s3_path="dags",
             plugins_s3_path="plugins.zip",
-            plugins_s3_object_version=MWAA_PLUGINS_VERSION,
+            #plugins_s3_object_version=MWAA_PLUGINS_VERSION,
             requirements_s3_path="requirements.txt",
             # requirements_s3_object_version=MWAA_REQUIREMENTS_VERSION,
             source_bucket_arn=s3_bucket_mwaa.bucket_arn,
             network_configuration=mwaa.CfnEnvironment.NetworkConfigurationProperty(
-                security_group_ids=[airflow_sg.security_group_id],
+                security_group_ids=[AIRFLOW_SG.security_group_id],
                 subnet_ids=VPC.select_subnets(
                     subnet_type=ec2.SubnetType.PRIVATE_WITH_NAT,
                 ).subnet_ids[:2],
