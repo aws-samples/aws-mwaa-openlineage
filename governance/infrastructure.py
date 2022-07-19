@@ -152,7 +152,7 @@ class Lineage(Stack):
         CfnOutput(
             self,
             "LineageInstanceSSH",
-            value=f"ssh -i ~/Downloads/newKeyPair.pem ec2-user@{lineage_instance.instance_public_dns_name}",
+            value=f"ssh -i ~/Downloads/{KEY_PAIR}.pem ec2-user@{lineage_instance.instance_public_dns_name}",
             export_name="lineage-instance-ssh",
         )
         CfnOutput(

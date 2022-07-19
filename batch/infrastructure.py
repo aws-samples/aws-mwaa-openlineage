@@ -38,7 +38,7 @@ class Glue(Stack):
         S3_BUCKET_STAGE: s3.Bucket,
         GLUE_DB_PREFIX: str,
         OPENLINEAGE_API: str,
-        OPENLINEAGE_NAMESPACE: str,
+        OPENLINEAGE_NAMESPACE: str
         VPC: ec2.Vpc,
     ):
         super().__init__(scope, id)
@@ -108,6 +108,7 @@ class Glue(Stack):
             description="Glue connection sg",
             allow_all_outbound=True,
         )
+
         # glue sg self-rule
         glue_connection_sg.connections.allow_internally(
             ec2.Port.all_traffic(), "within Glue connection sg"

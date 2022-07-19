@@ -28,8 +28,8 @@ DEV_EMR_MASTER_INSTANCE_COUNT = 1
 DEV_EMR_MASTER_INSTANCE_TYPE = "m4.large"
 DEV_EMR_NAME=f"{CDK_APP_NAME}-dev"
 DEV_GLUE_DB_PREFIX=f"{CDK_APP_NAME}-dev"
-DEV_KEY_PAIR = "newKeyPair"
-DEV_LF_ADMIN_USER = "mcgregf-dev1"
+DEV_KEY_PAIR = "poc"
+DEV_LF_ADMIN_USER = "pvillena"
 DEV_LINEAGE_INSTANCE = ec2.InstanceType("t2.xlarge")
 
 DEV_MWAA_ENV_CLASS = "mw1.small"

@@ -61,6 +61,7 @@ class CDKDataLake(Stage):
             GLUE_DB_PREFIX=constants.DEV_GLUE_DB_PREFIX,
             OPENLINEAGE_API=lineage.OPENLINEAGE_API,
             OPENLINEAGE_NAMESPACE=constants.DEV_OPENLINEAGE_NAMESPACE,
+            OPENLINEAGE_SG=lineage.OPENLINEAGE_SG,
             VPC=s3.VPC,
         )
 
