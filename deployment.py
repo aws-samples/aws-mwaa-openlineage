@@ -1,3 +1,4 @@
+from lib2to3.pgen2.token import OP
 from typing import Any
 
 # cdk stuff
@@ -26,7 +27,10 @@ class CDKDataLake(Stage):
 
         # storage
         storage = Stack(self, "storage")
-        s3 = S3(storage, "s3", EXTERNAL_IP=constants.EXTERNAL_IP)
+        s3 = S3(
+            storage, 
+            "s3", 
+            EXTERNAL_IP=constants.EXTERNAL_IP)
 
         # governance
         # open lineage
@@ -35,9 +39,9 @@ class CDKDataLake(Stage):
             governance,
             "lineage",
             VPC=s3.VPC,
-            EXTERNAL_IP=constants.EXTERNAL_IP,
             LINEAGE_INSTANCE=constants.DEV_LINEAGE_INSTANCE,
             KEY_PAIR=constants.DEV_KEY_PAIR,
+            OPENLINEAGE_SG=s3.OPENLINEAGE_SG,
         )
 
         # batch
@@ -61,6 +65,8 @@ class CDKDataLake(Stage):
             GLUE_DB_PREFIX=constants.DEV_GLUE_DB_PREFIX,
             OPENLINEAGE_API=lineage.OPENLINEAGE_API,
             OPENLINEAGE_NAMESPACE=constants.DEV_OPENLINEAGE_NAMESPACE,
+            GLUELINEAGE_LAMBDA_SG=s3.GLUELINEAGE_LAMBDA_SG,
+            GLUECONNECTION_SG=s3.GLUECONNECTION_SG,
             VPC=s3.VPC,
         )
 
@@ -80,6 +86,7 @@ class CDKDataLake(Stage):
             REDSHIFT_NODE_TYPE=constants.DEV_REDSHIFT_NODE_TYPE,
             REDSHIFT_CLUSTER_TYPE=constants.DEV_REDSHIFT_CLUSTER_TYPE,
             REDSHIFT_MASTER_USERNAME=constants.DEV_REDSHIFT_MASTER_USERNAME,
+            REDSHIFT_SG=s3.REDSHIFT_SG,
         )
         sagemaker = SageMaker(
             consume,
@@ -100,4 +107,5 @@ class CDKDataLake(Stage):
             MWAA_REQUIREMENTS_VERSION=constants.DEV_MWAA_REQUIREMENTS_VERSION,
             MWAA_DEPLOY_FILES=True,
             MWAA_REPO_DAG_NAME=constants.DEV_MWAA_REPO_DAG_NAME,
+            AIRFLOW_SG=s3.AIRFLOW_SG,
         )

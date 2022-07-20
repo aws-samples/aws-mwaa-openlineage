@@ -39,18 +39,11 @@ class Glue(Stack):
         GLUE_DB_PREFIX: str,
         OPENLINEAGE_API: str,
         OPENLINEAGE_NAMESPACE: str,
+        GLUELINEAGE_LAMBDA_SG: ec2.SecurityGroup,
+        GLUECONNECTION_SG: ec2.SecurityGroup,
         VPC: ec2.Vpc,
     ):
         super().__init__(scope, id)
-
-        # glue lineage lambda sg
-        glue_lineage_lambda_sg = ec2.SecurityGroup(
-            self,
-            "glue_lineage_lambda_sg",
-            vpc=VPC,
-            description="Glue lineage lambda sg",
-            allow_all_outbound=True,
-        )
 
         # to send lineage data to openlineage
         glue_lineage_lambda = _lambda.DockerImageFunction(
@@ -65,7 +58,7 @@ class Glue(Stack):
                 "OPENLINEAGE_NAMESPACE": OPENLINEAGE_NAMESPACE,
             },
             log_retention=RetentionDays.ONE_WEEK,
-            security_groups=[glue_lineage_lambda_sg],
+            security_groups=[GLUELINEAGE_LAMBDA_SG],
             timeout=Duration.seconds(30),
             vpc=VPC,
         )
@@ -100,19 +93,6 @@ class Glue(Stack):
         )
         database.apply_removal_policy(policy=RemovalPolicy.DESTROY)
 
-        # glue connection sg
-        glue_connection_sg = ec2.SecurityGroup(
-            self,
-            "glue_connection_sg",
-            vpc=VPC,
-            description="Glue connection sg",
-            allow_all_outbound=True,
-        )
-        # glue sg self-rule
-        glue_connection_sg.connections.allow_internally(
-            ec2.Port.all_traffic(), "within Glue connection sg"
-        )
-
         # glue connection
         glue_lineage_connection = glue.CfnConnection(
             self,
@@ -123,7 +103,7 @@ class Glue(Stack):
                 description="Glue network path to openlineage api",
                 physical_connection_requirements=glue.CfnConnection.PhysicalConnectionRequirementsProperty(
                     availability_zone=VPC.availability_zones[0],
-                    security_group_id_list=[glue_connection_sg.security_group_id],
+                    security_group_id_list=[GLUECONNECTION_SG.security_group_id],
                     subnet_id=VPC.select_subnets(
                         subnet_type=ec2.SubnetType.PRIVATE_WITH_NAT,
                         availability_zones=[VPC.availability_zones[0]],
@@ -275,19 +255,7 @@ class Glue(Stack):
         )
 
         # outputs
-        # need to add glue connection sg path to openlineage sg
-        CfnOutput(
-            self,
-            "GlueLineageLambdaSg",
-            value=glue_lineage_lambda_sg.security_group_id,
-            export_name="glue-lineage-lambda-sg",
-        )
-        CfnOutput(
-            self,
-            "GlueConnectionSg",
-            value=glue_connection_sg.security_group_id,
-            export_name="glue-connection-sg",
-        )
+        
         CfnOutput(
             self,
             "S3BucketSparkLogs",

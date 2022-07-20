@@ -110,7 +110,7 @@ After deploying the stack we need to update the openlineage security group to th
 
 ```bash
 # deploy the redshift stack
-npx cdk deploy cdkdl-dev/query/redshift
+npx cdk deploy cdkdl-dev/consume/redshift
 ```
 
 Follow up actions:

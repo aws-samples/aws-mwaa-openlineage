@@ -6,12 +6,15 @@ import requests
 # replace airflow DAG with openlineage DAG
 # from airflow import DAG
 from openlineage.airflow.dag import DAG
+from pkg_resources import parse_version
 
 # from openlineage.airflow import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.models import Variable
 from airflow.configuration import conf
+from airflow.models import Connection
+from airflow.version import version as AIRFLOW_VERSION
 
 
 def print_hello():
@@ -36,6 +39,14 @@ def print_hello():
     # url for the namespaces call
     url = f'{openlineage_url}/api/v1/namespaces'
     time_out = 5
+
+    conn = Connection(conn_id="REDSHIFT_CONNECTOR")
+    logging.info(f"Connection: {conn.get_uri()}")
+
+    conn2 = Connection.get_connection_from_secrets("REDSHIFT_CONNECTOR")
+    logging.info(f"Connection2: {conn2.get_uri()}")
+
+    logging.info(f"AIRFLOW_VERSION: {parse_version(AIRFLOW_VERSION)} Eval: {parse_version(AIRFLOW_VERSION) >= parse_version('2.0.0')}")
 
     # send the request
     try:

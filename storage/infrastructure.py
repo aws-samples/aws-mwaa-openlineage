@@ -31,7 +31,14 @@ class S3(Stack):
     deploy file from scripts directory into the raw bucket
     """
 
-    def __init__(self, scope: Construct, id: str, EXTERNAL_IP=None, **kwargs) -> None:
+    def __init__(
+            self, 
+            scope: Construct, 
+            id: str, 
+            EXTERNAL_IP: str,
+            **kwargs
+        ) -> None:
+
         super().__init__(scope, id, **kwargs)
 
         # create the vpc
@@ -41,6 +48,66 @@ class S3(Stack):
         vpc.add_gateway_endpoint(
             "e6ad3311-f566-426e-8291-6937101db6a1",
             service=ec2.GatewayVpcEndpointAwsService.S3,
+        )
+
+        # glue lineage lambda sg
+        glue_lineage_lambda_sg = ec2.SecurityGroup(
+            self,
+            "glue_lineage_lambda_sg",
+            vpc=vpc,
+            description="Glue lineage lambda sg"
+        )
+
+        # glue connection sg
+        glue_connection_sg = ec2.SecurityGroup(
+            self,
+            "glue_connection_sg",
+            vpc=vpc,
+            description="Glue connection sg"
+        )
+
+        redshift_sg = ec2.SecurityGroup(
+            self, 
+            "redshift_sg", 
+            vpc=vpc, 
+            description="Redshift sg"
+        )
+
+        # lineage sg
+        lineage_sg = ec2.SecurityGroup(
+            self, 
+            "lineage_sg", 
+            vpc=vpc, 
+            description="OpenLineage instance sg"
+        )
+
+        # # mwaa security group
+        airflow_sg = ec2.SecurityGroup(
+            self, 
+            "airflow_sg", 
+            vpc=vpc, 
+            description="MWAA sg"
+        )
+        # add access within group
+        airflow_sg.connections.allow_internally(ec2.Port.all_traffic(), "within MWAA")
+
+        # Open port 22 for SSH
+        for port in [22, 3000, 5000]:
+            lineage_sg.add_ingress_rule(
+                ec2.Peer.ipv4(f"{EXTERNAL_IP}/32"),
+                ec2.Port.tcp(port),
+                "Lineage from external ip",
+            )
+
+        lineage_sg.connections.allow_from(glue_lineage_lambda_sg, ec2.Port.tcp(5000))
+        lineage_sg.connections.allow_from(glue_connection_sg, ec2.Port.tcp(5000))
+        lineage_sg.connections.allow_from(airflow_sg, ec2.Port.tcp(5000))
+        redshift_sg.connections.allow_from(airflow_sg, ec2.Port.tcp(5439))
+        redshift_sg.connections.allow_from(lineage_sg, ec2.Port.tcp(5439))
+
+        # glue sg self-rule
+        glue_connection_sg.connections.allow_internally(
+            ec2.Port.all_traffic(), "within Glue connection sg"
         )
 
         # create s3 bucket for logs
@@ -109,10 +176,52 @@ class S3(Stack):
         self.S3_BUCKET_RAW = s3_bucket_raw
         self.S3_BUCKET_STAGE = s3_bucket_stage
 
+        # share security groups
+        self.GLUELINEAGE_LAMBDA_SG = glue_lineage_lambda_sg
+        self.GLUECONNECTION_SG = glue_connection_sg
+        self.REDSHIFT_SG = redshift_sg
+        self.OPENLINEAGE_SG = lineage_sg
+        self.AIRFLOW_SG = airflow_sg
+
         # outputs
         CfnOutput(
             self,
             "nyc-taxi-copy",
             value=f"aws s3 cp s3://nyc-tlc/trip\ data/green_tripdata_2020-06.csv s3://{s3_bucket_raw.bucket_name}/nyctaxi/",
             export_name="nyc-taxi-copy",
+        )
+
+        # need to add glue connection sg path to openlineage sg
+        CfnOutput(
+            self,
+            "GlueLineageLambdaSg",
+            value=glue_lineage_lambda_sg.security_group_id,
+            export_name="glue-lineage-lambda-sg",
+        )
+        CfnOutput(
+            self,
+            "GlueConnectionSg",
+            value=glue_connection_sg.security_group_id,
+            export_name="glue-connection-sg",
+        )
+
+        CfnOutput(
+            self,
+            "RedshiftSg",
+            value=redshift_sg.security_group_id,
+            export_name="redshift-sg",
+        )
+
+        CfnOutput(
+            self,
+            "OpenlineageSg",
+            value=lineage_sg.security_group_id,
+            export_name="openlineage-sg",
+        )
+
+        CfnOutput(
+            self,
+            "AirflowSg",
+            value=airflow_sg.security_group_id,
+            export_name="airflow-sg",
         )

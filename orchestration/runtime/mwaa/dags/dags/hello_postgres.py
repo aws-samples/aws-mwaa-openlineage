@@ -5,17 +5,18 @@ from openlineage.airflow.dag import DAG
 from airflow.providers.postgres.operators.postgres import PostgresOperator
 
 # set default args
-args = {"postgres_conn_id": "REDSHIFT_CONNECTOR"}
+#args = {"postgres_conn_id": "REDSHIFT_CONNECTOR"}
 
 with DAG(
     dag_id="hello_postgres",
-    default_args=args,
+    #default_args=args,
     start_date=datetime.datetime(2020, 2, 2),
     schedule_interval="@once",
     catchup=False,
 ) as dag:
     create_pet_table = PostgresOperator(
         task_id="create_pet_table",
+        postgres_conn_id="REDSHIFT_CONNECTOR",
         sql="""
             CREATE TABLE IF NOT EXISTS pet (
             pet_id BIGINT IDENTITY(0,1),
@@ -27,6 +28,7 @@ with DAG(
     )
     populate_pet_table = PostgresOperator(
         task_id="populate_pet_table",
+        postgres_conn_id="REDSHIFT_CONNECTOR",
         sql="""
             INSERT INTO pet (name, pet_type, birth_date, OWNER)
             VALUES ( 'Max', 'Dog', '2018-07-05', 'Jane');
@@ -40,10 +42,12 @@ with DAG(
     )
     get_all_pets = PostgresOperator(
         task_id="get_all_pets",
+        postgres_conn_id="REDSHIFT_CONNECTOR",
         sql="SELECT * FROM pet;",
     )
     get_birth_date = PostgresOperator(
         task_id="get_birth_date",
+        postgres_conn_id="REDSHIFT_CONNECTOR",
         sql="""
             SELECT * FROM pet
             WHERE birth_date
