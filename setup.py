@@ -18,8 +18,8 @@ setuptools.setup(
     ),
     install_requires=[
         # cdk v2
-        "aws-cdk-lib>=2.0.0",
-        "constructs>=10.0.0"
+        "aws-cdk-lib>=2.33.0",
+        "constructs>=10.1.0"
     ],
     extras_require={
         "dev": [

@@ -117,25 +117,22 @@ class Glue(Stack):
             self,
             "crawler_role",
             assumed_by=iam.ServicePrincipal("glue.amazonaws.com"),
-            inline_policies=[
-                iam.PolicyDocument(
-                    statements=[
-                        iam.PolicyStatement(
-                            effect=iam.Effect.ALLOW,
-                            actions=["s3:*"],
-                            resources=[
-                                S3_BUCKET_RAW.bucket_arn,
-                                f"{S3_BUCKET_RAW.bucket_arn}/*",
-                            ],
-                        ),
-                    ]
-                ),
-            ],
             managed_policies=[
                 iam.ManagedPolicy.from_aws_managed_policy_name(
                     "service-role/AWSGlueServiceRole"
-                ),
+                )
             ],
+        )
+        
+        crawler_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=["s3:*"],
+                resources=[
+                    S3_BUCKET_RAW.bucket_arn,
+                    f"{S3_BUCKET_RAW.bucket_arn}/*"
+                ]
+            )
         )
 
         # the raw bucket crawler
@@ -189,29 +186,26 @@ class Glue(Stack):
             self,
             "glue_job_stage_role",
             assumed_by=iam.ServicePrincipal("glue.amazonaws.com"),
-            inline_policies=[
-                iam.PolicyDocument(
-                    statements=[
-                        iam.PolicyStatement(
-                            effect=iam.Effect.ALLOW,
-                            actions=["s3:*"],
-                            resources=[
-                                S3_BUCKET_RAW.bucket_arn,
-                                f"{S3_BUCKET_RAW.bucket_arn}/*",
-                                S3_BUCKET_STAGE.bucket_arn,
-                                f"{S3_BUCKET_STAGE.bucket_arn}/*",
-                                s3_bucket_spark.bucket_arn,
-                                f"{s3_bucket_spark.bucket_arn}/*",
-                            ],
-                        ),
-                    ]
-                ),
-            ],
             managed_policies=[
                 iam.ManagedPolicy.from_aws_managed_policy_name(
                     "service-role/AWSGlueServiceRole"
-                ),
+                )
             ],
+        )
+        
+        glue_job_stage_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=["s3:*"],
+                resources=[
+                    S3_BUCKET_RAW.bucket_arn,
+                    f"{S3_BUCKET_RAW.bucket_arn}/*",
+                    S3_BUCKET_STAGE.bucket_arn,
+                    f"{S3_BUCKET_STAGE.bucket_arn}/*",
+                    s3_bucket_spark.bucket_arn,
+                    f"{s3_bucket_spark.bucket_arn}/*",
+                ],
+            ),
         )
         glue_job_stage_script.grant_read(glue_job_stage_role)
 
