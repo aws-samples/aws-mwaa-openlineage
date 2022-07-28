@@ -174,6 +174,17 @@ class Redshift(Stack):
             ),
             description=f"Redshift Cluster Password in Secrets Manager",
         )
+        
+        output_4 = CfnOutput(
+            self,
+            "RedshiftConnectionString",
+            value=(
+                f"postgres://{REDSHIFT_MASTER_USERNAME}:<Password>"
+                f"@{redshift_cluster.attr_endpoint_address}:5439"
+                f"/{redshift_cluster.db_name}"
+            ),
+            description=f"Redshift Connection String",
+        )
 
 class SageMaker(Stack):
     """create crawlers for the s3 buckets"""

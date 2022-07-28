@@ -5,8 +5,16 @@ from aws_cdk import App, Stack, Environment
 from aws_cdk import aws_dynamodb as dynamodb
 from aws_cdk import aws_ec2 as ec2
 
-# add creator ip
-EXTERNAL_IP = urllib.request.urlopen("https://ident.me").read().decode("utf8")
+# Update Key Pair
+DEV_KEY_PAIR = "key_openlineage"
+
+# Update Lake Formation admin
+DEV_LF_ADMIN_USER = "LFadmin"
+
+# Update  client external ip
+EXTERNAL_IP = "110.21.27.172"
+#EXTERNAL_IP = urllib.request.urlopen("https://ident.me").read().decode("utf8")
+
 
 CDK_APP_NAME = "cdkdl"
 CDK_APP_PYTHON_VERSION = "3.7"
@@ -28,14 +36,12 @@ DEV_EMR_MASTER_INSTANCE_COUNT = 1
 DEV_EMR_MASTER_INSTANCE_TYPE = "m4.large"
 DEV_EMR_NAME=f"{CDK_APP_NAME}-dev"
 DEV_GLUE_DB_PREFIX=f"{CDK_APP_NAME}-dev"
-DEV_KEY_PAIR = "poc"
-DEV_LF_ADMIN_USER = "pvillena"
 DEV_LINEAGE_INSTANCE = ec2.InstanceType("t2.xlarge")
 
 DEV_MWAA_ENV_CLASS = "mw1.small"
 DEV_MWAA_ENV_NAME=f"{CDK_APP_NAME}-dev"
-DEV_MWAA_PLUGINS_VERSION = "H_YfcX5gK_gBfHFbqoOUq4pDgt4DZwfD"
-DEV_MWAA_REQUIREMENTS_VERSION = "N0MsJPsONyYtd6o_afTskMHrvG78vutT"
+# DEV_MWAA_PLUGINS_VERSION = "H_YfcX5gK_gBfHFbqoOUq4pDgt4DZwfD"
+# DEV_MWAA_REQUIREMENTS_VERSION = "N0MsJPsONyYtd6o_afTskMHrvG78vutT"
 DEV_OPENLINEAGE_NAMESPACE=f"{CDK_APP_NAME}-dev"
 DEV_MWAA_REPO_DAG_NAME=f"{CDK_APP_NAME}-dev-mwaa-repo-dag"
 

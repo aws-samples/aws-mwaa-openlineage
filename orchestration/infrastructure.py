@@ -39,8 +39,8 @@ class MWAA(Stack):
         MWAA_ENV_CLASS: str,
         # OPENLINEAGE_SG: ec2.SecurityGroup,
         # REDSHIFT_SG: ec2.SecurityGroup,
-        MWAA_REQUIREMENTS_VERSION: str,
-        MWAA_PLUGINS_VERSION: str,
+        # MWAA_REQUIREMENTS_VERSION: str,
+        # MWAA_PLUGINS_VERSION: str,
         MWAA_REPO_DAG_NAME: str,
         VPC: ec2.Vpc,
         AIRFLOW_SG: ec2.SecurityGroup,
@@ -102,85 +102,100 @@ class MWAA(Stack):
                     "SecretsManagerReadWrite"
                 )
             ],
-            inline_policies=[
-                iam.PolicyDocument(
-                    statements=[
-                        iam.PolicyStatement(
-                            effect=iam.Effect.ALLOW,
-                            actions=["airflow:PublishMetrics"],
-                            resources=["*"],
-                        ),
-                        iam.PolicyStatement(
-                            effect=iam.Effect.DENY,
-                            actions=["s3:ListAllMyBuckets"],
-                            resources=[
-                                s3_bucket_mwaa.bucket_arn,
-                                f"{s3_bucket_mwaa.bucket_arn}/*",
-                            ],
-                        ),
-                        iam.PolicyStatement(
-                            effect=iam.Effect.ALLOW,
-                            actions=[
-                                "s3:GetObject*",
-                                "s3:GetBucket*",
-                                "s3:List*",
-                            ],
-                            resources=[
-                                s3_bucket_mwaa.bucket_arn,
-                                f"{s3_bucket_mwaa.bucket_arn}/*",
-                            ],
-                        ),
-                        iam.PolicyStatement(
-                            effect=iam.Effect.ALLOW,
-                            actions=[
-                                "logs:CreateLogStream",
-                                "logs:CreateLogGroup",
-                                "logs:PutLogEvents",
-                                "logs:GetLogEvents",
-                                "logs:GetLogRecord",
-                                "logs:GetLogGroupFields",
-                                "logs:GetQueryResults",
-                                "logs:DescribeLogGroups",
-                            ],
-                            resources=["*"],
-                        ),
-                        iam.PolicyStatement(
-                            effect=iam.Effect.ALLOW,
-                            actions=["cloudwatch:PutMetricData"],
-                            resources=["*"],
-                        ),
-                        iam.PolicyStatement(
-                            effect=iam.Effect.ALLOW,
-                            actions=[
-                                "sqs:ChangeMessageVisibility",
-                                "sqs:DeleteMessage",
-                                "sqs:GetQueueAttributes",
-                                "sqs:GetQueueUrl",
-                                "sqs:ReceiveMessage",
-                                "sqs:SendMessage",
-                            ],
-                            resources=[f"arn:aws:sqs:{Aws.REGION}:*:airflow-celery-*"],
-                        ),
-                        iam.PolicyStatement(
-                            effect=iam.Effect.ALLOW,
-                            actions=[
-                                "kms:Decrypt",
-                                "kms:DescribeKey",
-                                "kms:GenerateDataKey*",
-                                "kms:Encrypt",
-                            ],
-                            not_resources=[f"arn:aws:kms:*:{Aws.ACCOUNT_ID}:key/*"],
-                            conditions={
-                                "StringLike": {
-                                    "kms:ViaService": [
-                                        f"sqs.{Aws.REGION}.amazonaws.com"
-                                    ]
-                                }
-                            },
-                        ),
-                    ]
-                )
-            ],
+        )
+        
+        airflow_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=["airflow:PublishMetrics"],
+                resources=["*"],
+            )
+        )
+        
+        airflow_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.DENY,
+                actions=["s3:ListAllMyBuckets"],
+                resources=[
+                    s3_bucket_mwaa.bucket_arn,
+                    f"{s3_bucket_mwaa.bucket_arn}/*",
+                ]
+            )
+        )
+        
+        airflow_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "s3:GetObject*",
+                    "s3:GetBucket*",
+                    "s3:List*",
+                ],
+                resources=[
+                    s3_bucket_mwaa.bucket_arn,
+                    f"{s3_bucket_mwaa.bucket_arn}/*",
+                ],
+            )
+        )
+        
+        airflow_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "logs:CreateLogStream",
+                    "logs:CreateLogGroup",
+                    "logs:PutLogEvents",
+                    "logs:GetLogEvents",
+                    "logs:GetLogRecord",
+                    "logs:GetLogGroupFields",
+                    "logs:GetQueryResults",
+                    "logs:DescribeLogGroups",
+                ],
+                resources=["*"],
+            )
+        )
+        
+        airflow_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=["cloudwatch:PutMetricData"],
+                resources=["*"],
+            )
+        )
+        
+        airflow_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "sqs:ChangeMessageVisibility",
+                    "sqs:DeleteMessage",
+                    "sqs:GetQueueAttributes",
+                    "sqs:GetQueueUrl",
+                    "sqs:ReceiveMessage",
+                    "sqs:SendMessage",
+                ],
+                resources=[f"arn:aws:sqs:{Aws.REGION}:*:airflow-celery-*"],
+            )
+        )
+            
+        airflow_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "kms:Decrypt",
+                    "kms:DescribeKey",
+                    "kms:GenerateDataKey*",
+                    "kms:Encrypt",
+                ],
+                not_resources=[f"arn:aws:kms:*:{Aws.ACCOUNT_ID}:key/*"],
+                conditions={
+                    "StringLike": {
+                        "kms:ViaService": [
+                            f"sqs.{Aws.REGION}.amazonaws.com"
+                        ]
+                    }
+                },
+            )
         )
 
         
@@ -216,7 +231,7 @@ class MWAA(Stack):
             plugins_s3_path="plugins.zip",
             #plugins_s3_object_version=MWAA_PLUGINS_VERSION,
             requirements_s3_path="requirements.txt",
-            # requirements_s3_object_version=MWAA_REQUIREMENTS_VERSION,
+            #requirements_s3_object_version=MWAA_REQUIREMENTS_VERSION,
             source_bucket_arn=s3_bucket_mwaa.bucket_arn,
             network_configuration=mwaa.CfnEnvironment.NetworkConfigurationProperty(
                 security_group_ids=[AIRFLOW_SG.security_group_id],
