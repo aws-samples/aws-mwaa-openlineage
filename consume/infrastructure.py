@@ -8,6 +8,7 @@ from aws_cdk import (
     aws_iam as iam,
     aws_s3 as s3,
     aws_redshift as redshift,
+    aws_redshiftserverless as rs,
     aws_secretsmanager as _sm,
     Aws,
     CfnOutput,
@@ -15,46 +16,6 @@ from aws_cdk import (
     Stack
 )
 
-
-class Athena(Stack):
-    """create crawlers for the s3 buckets"""
-
-    def __init__(
-        self,
-        scope: Construct,
-        id: str,
-        VPC=ec2.Vpc,
-    ):
-        super().__init__(scope, id)
-
-        # create the vpc endpoint for athena
-        VPC.add_interface_endpoint(
-            "athena_endpoint",
-            service=ec2.InterfaceVpcEndpointAwsService(name="athena"),
-        )
-
-        # create s3 bucket for athena results
-        s3_bucket_athena = s3.Bucket(
-            self,
-            "athena",
-            encryption=s3.BucketEncryption.S3_MANAGED,
-            public_read_access=False,
-            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
-            removal_policy=RemovalPolicy.DESTROY,
-            auto_delete_objects=True,
-        )
-
-        # event rule to send athena events
-        #glue_table_events = events.Rule(
-        #    self,
-        #    "glue_table_events",
-        #    description="Glue table updates to openlineage",
-        #    targets=[targets.LambdaFunction(athena_lineage_lambda)],
-        #    event_pattern={
-        #        "source": ["aws.glue"],
-        #        "detail_type": ["Glue Data Catalog Table State Change"],
-        #    },
-        #)
 
 class Redshift(Stack):
     """create crawlers for the s3 buckets"""
@@ -64,9 +25,8 @@ class Redshift(Stack):
         scope: Construct,
         id: str,
         REDSHIFT_DB_NAME: str,
-        REDSHIFT_NUM_NODES: str,
-        REDSHIFT_NODE_TYPE: str,
-        REDSHIFT_CLUSTER_TYPE: str,
+        REDSHIFT_NAMESPACE: str,
+        REDSHIFT_WORKGROUP: str,
         REDSHIFT_MASTER_USERNAME: str,
         REDSHIFT_SG: ec2.SecurityGroup,
         VPC=ec2.Vpc,
@@ -91,7 +51,7 @@ class Redshift(Stack):
             ],
         )
 
-        spectrum_lake_formation_policy = iam.ManagedPolicy(
+        iam.ManagedPolicy(
             self,
             "spectrum_lake_formation_policy",
             description="Provide access between Redshift Spectrum and Lake Formation",
@@ -126,35 +86,35 @@ class Redshift(Stack):
             roles=[redshift_cluster_role],
         )
 
-        redshift_cluster_subnet_group = redshift.CfnClusterSubnetGroup(
+        rs_namespace = rs.CfnNamespace(
             self,
-            "redshiftDemoClusterSubnetGroup",
-            subnet_ids=VPC.select_subnets(
-                subnet_type=ec2.SubnetType.PRIVATE_WITH_NAT
-            ).subnet_ids,
-            description="Redshift Demo Cluster Subnet Group",
+            "redshiftServerlessNamespace",
+            namespace_name=REDSHIFT_NAMESPACE,
+            db_name=REDSHIFT_DB_NAME,
+            default_iam_role_arn=redshift_cluster_role.role_arn,
+            iam_roles=[redshift_cluster_role.role_arn],
+            admin_username=REDSHIFT_MASTER_USERNAME,
+            admin_user_password=redshift_password.secret_value.unsafe_unwrap(),
         )
 
-        redshift_cluster = redshift.CfnCluster(
+        rs_workgroup = rs.CfnWorkgroup(
             self,
-            "redshift_cluster",
-            db_name=REDSHIFT_DB_NAME,
-            cluster_type=REDSHIFT_CLUSTER_TYPE,
-            number_of_nodes=REDSHIFT_NUM_NODES,
-            master_username=REDSHIFT_MASTER_USERNAME,
-            master_user_password=redshift_password.secret_value.to_string(),
-            iam_roles=[redshift_cluster_role.role_arn],
-            node_type=REDSHIFT_NODE_TYPE,
-            cluster_subnet_group_name=redshift_cluster_subnet_group.ref,
-            vpc_security_group_ids=[REDSHIFT_SG.security_group_id],
+            "redshiftServerlessWorkgroup",
+            workgroup_name=REDSHIFT_WORKGROUP,
+            base_capacity=32,
+            namespace_name=rs_namespace.ref,
+            security_group_ids=[REDSHIFT_SG.security_group_id],
+            subnet_ids=VPC.select_subnets(
+                subnet_type=ec2.SubnetType.PUBLIC
+            ).subnet_ids,
         )
 
         # outputs
         output_1 = CfnOutput(
             self,
-            "RedshiftCluster",
-            value=f"{redshift_cluster.attr_endpoint_address}",
-            description=f"RedshiftCluster Endpoint",
+            "RedshiftServerlessEndpoint",
+            value=f"{REDSHIFT_WORKGROUP}.{Aws.ACCOUNT_ID}.{Aws.REGION}.redshift-serverless.amazonaws.com",
+            description=f"RedshiftServerlessEndpoint",
         )
         output_2 = CfnOutput(
             self,
@@ -180,48 +140,8 @@ class Redshift(Stack):
             "RedshiftConnectionString",
             value=(
                 f"postgres://{REDSHIFT_MASTER_USERNAME}:<Password>"
-                f"@{redshift_cluster.attr_endpoint_address}:5439"
-                f"/{redshift_cluster.db_name}"
+                f"@{REDSHIFT_WORKGROUP}.{Aws.ACCOUNT_ID}.{Aws.REGION}.redshift-serverless.amazonaws.com:5439"
+                f"/{rs_namespace.db_name} "
             ),
             description=f"Redshift Connection String",
         )
-
-class SageMaker(Stack):
-    """create crawlers for the s3 buckets"""
-
-    def __init__(
-        self,
-        scope: Construct,
-        id: str,
-        VPC=ec2.Vpc,
-    ):
-        super().__init__(scope, id)
-
-        # create the vpc endpoint for sagemaker
-        #VPC.add_interface_endpoint(
-        #    "sagemaker",
-        #    service=ec2.InterfaceVpcEndpointAwsService(name="sagemaker"),
-        #)
-
-        # create s3 bucket for athena results
-        #s3_bucket_athena = s3.Bucket(
-        #    self,
-        #    "athena",
-        #    encryption=s3.BucketEncryption.S3_MANAGED,
-        #    public_read_access=False,
-        #    block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
-        #    removal_policy=RemovalPolicy.DESTROY,
-        #    auto_delete_objects=True,
-        #)
-
-        # event rule to send athena events
-        #glue_table_events = events.Rule(
-        #    self,
-        #    "glue_table_events",
-        #    description="Glue table updates to openlineage",
-        #    targets=[targets.LambdaFunction(athena_lineage_lambda)],
-        #    event_pattern={
-        #        "source": ["aws.glue"],
-        #        "detail_type": ["Glue Data Catalog Table State Change"],
-        #    },
-        #)

@@ -6,13 +6,13 @@ from aws_cdk import aws_dynamodb as dynamodb
 from aws_cdk import aws_ec2 as ec2
 
 # Update Key Pair
-DEV_KEY_PAIR = "key_openlineage"
+DEV_KEY_PAIR = "poc"
 
 # Update Lake Formation admin
 DEV_LF_ADMIN_USER = "LFadmin"
 
 # Update  client external ip
-EXTERNAL_IP = "110.21.27.172"
+EXTERNAL_IP = "110.21.29.7"
 #EXTERNAL_IP = urllib.request.urlopen("https://ident.me").read().decode("utf8")
 
 
@@ -51,6 +51,9 @@ DEV_REDSHIFT_MASTER_USERNAME = f"{CDK_APP_NAME}_user"
 DEV_REDSHIFT_DB_NAME=f"{CDK_APP_NAME}-dev"
 DEV_REDSHIFT_NUM_NODES= 2
 DEV_REDSHIFT_NODE_TYPE= "ra3.4xlarge"
+DEV_REDSHIFT_NAMESPACE=f"{CDK_APP_NAME}_namespace"
+DEV_REDSHIFT_WORKGROUP=f"{CDK_APP_NAME}_workgroup"
+
 
 PIPELINE_ENV = Environment(account="222222222222", region="eu-west-1")
 
