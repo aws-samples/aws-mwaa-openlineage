@@ -37,10 +37,6 @@ class MWAA(Stack):
         id: str,
         MWAA_ENV_NAME: str,
         MWAA_ENV_CLASS: str,
-        # OPENLINEAGE_SG: ec2.SecurityGroup,
-        # REDSHIFT_SG: ec2.SecurityGroup,
-        # MWAA_REQUIREMENTS_VERSION: str,
-        # MWAA_PLUGINS_VERSION: str,
         MWAA_REPO_DAG_NAME: str,
         VPC: ec2.Vpc,
         AIRFLOW_SG: ec2.SecurityGroup,
@@ -199,17 +195,6 @@ class MWAA(Stack):
         )
 
         
-
-        # add path to openlineage
-        #OPENLINEAGE_SG.connections.allow_from(
-        #   airflow_sg, ec2.Port.tcp(5000), "MWAA to Openlineage"
-        #)
-        # add path to redshift
-        # REDSHIFT_SG.connections.allow_from(
-        #    airflow_sg, ec2.Port.tcp(5439), "MWAA to Redshift"
-        # )
-
-        # add an airflow environment
         airflow_env = mwaa.CfnEnvironment(
             self,
             "airflow_env",
