@@ -8,8 +8,6 @@ from aws_cdk import aws_ec2 as ec2
 # Update Key Pair
 DEV_KEY_PAIR = "poc"
 
-# Update Lake Formation admin
-DEV_LF_ADMIN_USER = "LFadmin"
 
 # Update  client external ip
 EXTERNAL_IP = "110.21.29.7"
@@ -35,7 +33,7 @@ DEV_EMR_CORE_INSTANCE_TYPE = "m4.large"
 DEV_EMR_MASTER_INSTANCE_COUNT = 1
 DEV_EMR_MASTER_INSTANCE_TYPE = "m4.large"
 DEV_EMR_NAME=f"{CDK_APP_NAME}-dev"
-DEV_GLUE_DB_PREFIX=f"{CDK_APP_NAME}-dev"
+DEV_GLUE_DB=f"{CDK_APP_NAME}-redshift"
 DEV_LINEAGE_INSTANCE = ec2.InstanceType("t2.xlarge")
 
 DEV_MWAA_ENV_CLASS = "mw1.small"
@@ -51,8 +49,8 @@ DEV_REDSHIFT_MASTER_USERNAME = f"{CDK_APP_NAME}_user"
 DEV_REDSHIFT_DB_NAME=f"{CDK_APP_NAME}-dev"
 DEV_REDSHIFT_NUM_NODES= 2
 DEV_REDSHIFT_NODE_TYPE= "ra3.4xlarge"
-DEV_REDSHIFT_NAMESPACE=f"{CDK_APP_NAME}_namespace"
-DEV_REDSHIFT_WORKGROUP=f"{CDK_APP_NAME}_workgroup"
+DEV_REDSHIFT_NAMESPACE=f"{CDK_APP_NAME}ns"
+DEV_REDSHIFT_WORKGROUP=f"{CDK_APP_NAME}wg"
 
 
 PIPELINE_ENV = Environment(account="222222222222", region="eu-west-1")

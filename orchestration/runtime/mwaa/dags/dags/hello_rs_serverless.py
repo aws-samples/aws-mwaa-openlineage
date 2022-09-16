@@ -7,7 +7,7 @@ with DAG(dag_id="rs", schedule_interval=None, start_date=days_ago(2), tags=['exa
     CREATE TABLE IF NOT EXISTS fruit (fruit_id INTEGER, name VARCHAR NOT NULL, color VARCHAR NOT NULL);
     '''
     create_table_fruit = PostgresOperator(
-        postgres_conn_id='rs_serverless',
+        postgres_conn_id='REDSHIFT_CONNECTOR',
         task_id='setup__create_table',
         sql=create_fruit_query
     )
@@ -16,7 +16,7 @@ with DAG(dag_id="rs", schedule_interval=None, start_date=days_ago(2), tags=['exa
     INSERT INTO fruit VALUES ( 1, 'Banana', 'Yellow');
     '''
     task_insert_data = PostgresOperator(
-        postgres_conn_id='rs_serverless',
+        postgres_conn_id='REDSHIFT_CONNECTOR',
         task_id='task_insert_data',
         sql=insert_fruit_query
     )
@@ -25,7 +25,7 @@ with DAG(dag_id="rs", schedule_interval=None, start_date=days_ago(2), tags=['exa
     CREATE TABLE IF NOT EXISTS citrus (fruit_id INTEGER, name VARCHAR NOT NULL, color VARCHAR NOT NULL);
     '''
     create_table_citrus = PostgresOperator(
-        postgres_conn_id='rs_serverless',
+        postgres_conn_id='REDSHIFT_CONNECTOR',
         task_id='setup__task_create_table_citrus',
         sql=create_citrus_query
     )
@@ -34,7 +34,7 @@ with DAG(dag_id="rs", schedule_interval=None, start_date=days_ago(2), tags=['exa
     INSERT INTO citrus (fruit_id, name, color) SELECT * FROM fruit;
     '''
     task_insert_data_citrus = PostgresOperator(
-        postgres_conn_id='rs_serverless',
+        postgres_conn_id='REDSHIFT_CONNECTOR',
         task_id='task_insert_data_citrus',
         sql=inser_citrus_query
     )
