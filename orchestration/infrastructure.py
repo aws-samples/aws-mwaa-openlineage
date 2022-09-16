@@ -41,8 +41,9 @@ class MWAA(Stack):
         VPC: ec2.Vpc,
         AIRFLOW_SG: ec2.SecurityGroup,
         MWAA_DEPLOY_FILES: bool = False,
+        **kwargs
     ):
-        super().__init__(scope, id)
+        super().__init__(scope, id, **kwargs)
 
         # create s3 bucket for mwaa
         s3_bucket_mwaa = s3.Bucket(

@@ -4,9 +4,12 @@ from aws_cdk import (
     aws_ec2 as ec2,
     aws_iam as iam,
     aws_lakeformation as lf,
+    aws_secretsmanager as sm,
     CfnOutput,
     Duration,
     Stack,
+    RemovalPolicy,
+    SecretValue
 )
 from pathlib import Path
 
@@ -30,9 +33,11 @@ class Lineage(Stack):
         LINEAGE_INSTANCE: ec2.InstanceType,
         OPENLINEAGE_SG: ec2.SecurityGroup,
         KEY_PAIR: str,
+        OPENLINEAGE_NAMESPACE: str,
+        **kwargs
 
     ):
-        super().__init__(scope, id)
+        super().__init__(scope, id, **kwargs)
 
         # role for instance
         lineage_instance_role = iam.Role(
@@ -117,7 +122,7 @@ class Lineage(Stack):
                             # start marquez
                             # start not working as docker compose not recognized?
                             ec2.InitCommand.shell_command(
-                                "sudo -u ec2-user ./docker/up.sh --detach",
+                                "sudo -u ec2-user ./docker/up.sh --tag 0.25.0 --detach",
                                 cwd="/home/ec2-user/marquez",
                                 ignore_errors=True,
                             ),
@@ -134,6 +139,24 @@ class Lineage(Stack):
         # attributes to share
         self.OPENLINEAGE_URL = lineage_instance.instance_public_dns_name
         self.OPENLINEAGE_API = f"http://{lineage_instance.instance_public_dns_name}:5000"
+        
+        secret_openlineage_namespace = sm.Secret(
+            self,
+            "openlineage_namespace",
+            description="Openlineage Namespace",
+            secret_name="airflow/variables/OPENLINEAGE_NAMESPACE",
+            secret_string_value=SecretValue.unsafe_plain_text(OPENLINEAGE_NAMESPACE),
+            removal_policy=RemovalPolicy.DESTROY,
+        )
+
+        secret_openlineage_url = sm.Secret(
+            self,
+            "openlineage_url",
+            description="Openlineage URL",
+            secret_name="airflow/variables/OPENLINEAGE_URL",
+            secret_string_value=SecretValue.unsafe_plain_text(f"http://{lineage_instance.instance_public_dns_name}:5000"),
+            removal_policy=RemovalPolicy.DESTROY,
+        )
 
         # create Outputs
         CfnOutput(
