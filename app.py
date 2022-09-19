@@ -16,6 +16,8 @@ app = App()
 #This enables security validation through cdk_nag
 #Aspects.of(app).add(AwsSolutionsChecks(verbose=True))
 
+
+
 s3 = S3(app,
         "s3",
         EXTERNAL_IP=constants.EXTERNAL_IP,
