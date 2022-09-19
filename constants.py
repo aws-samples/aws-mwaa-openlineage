@@ -5,14 +5,11 @@ from aws_cdk import App, Stack, Environment
 from aws_cdk import aws_dynamodb as dynamodb
 from aws_cdk import aws_ec2 as ec2
 
-# Update Key Pair
-DEV_KEY_PAIR = "poc"
+# Update EC2 Key Pair
+DEV_KEY_PAIR = "mwaa-openlineage"
 
-
-# Update  client external ip
-EXTERNAL_IP = "110.21.29.7"
-#EXTERNAL_IP = urllib.request.urlopen("https://ident.me").read().decode("utf8")
-
+# Update client external ip to access OpenLineage UI
+EXTERNAL_IP = "255.255.255.255"
 
 CDK_APP_NAME = "cdkdl"
 CDK_APP_PYTHON_VERSION = "3.7"
@@ -26,6 +23,9 @@ GITHUB_TRUNK_BRANCH = "TRUNK_BRANCH"
 DEV_ENV = Environment(
     account=os.environ["CDK_DEFAULT_ACCOUNT"], region=os.environ["CDK_DEFAULT_REGION"]
 )
+
+DEV_CLOUD9_INSTANCE_TYPE = "t3.xlarge"
+DEV_CLOUD9_IMAGE_ID = "amazonlinux-2-x86_64"
 DEV_EMR_NAME=f"{CDK_APP_NAME}-dev"
 DEV_EMR_RELEASE_LABEL = "6.0.0"
 DEV_EMR_CORE_INSTANCE_COUNT = 1

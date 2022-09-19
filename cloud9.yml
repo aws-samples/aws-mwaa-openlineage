@@ -1,0 +1,19 @@
+# Parameters:
+#   Cloud9Subnet:
+#     Type: AWS::EC2::Subnet::Id
+#     Description: Subnet to place Cloud9
+Resources:
+  Cloud9Environment:
+    Type: AWS::Cloud9::EnvironmentEC2
+    Properties:
+      InstanceType: t3.xlarge
+      ImageId: amazonlinux-2-x86_64
+      # SubnetId: !Ref Cloud9Subnet
+    Metadata:
+      aws:cdk:path: cloud9/Cloud9Environment
+Outputs:
+  Cloud9Env:
+    Description: Cloud9 Environment
+    Value: !GetAtt Cloud9Environment.Name
+    Export:
+      Name: "Cloud9Environment"
