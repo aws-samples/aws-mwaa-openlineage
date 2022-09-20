@@ -1,16 +1,13 @@
 from airflow import DAG
 from airflow.utils.dates import days_ago
 from airflow.providers.postgres.operators.postgres import PostgresOperator
-from airflow.models import Variable
 
-s3bucket = Variable.get('S3_BUCKET_RAW')
-
-with DAG(dag_id="rs_tickit", schedule_interval=None, start_date=days_ago(2), tags=['example']) as dag:
+with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_ago(2), tags=['example']) as dag:
 
     create_ext_schema_query = f'''
     create external schema IF NOT EXISTS s3_datalake
     from data catalog
-    database 'redshift_glue_db'
+    database 'cdkdl-redshift'
     iam_role default
     create external database if not exists;
     '''
@@ -28,6 +25,7 @@ with DAG(dag_id="rs_tickit", schedule_interval=None, start_date=days_ago(2), tag
 	dateid smallint not null,
 	eventname varchar(200),
 	starttime timestamp);
+    DELETE FROM event;
     '''
     create_table_event = PostgresOperator(
         postgres_conn_id='REDSHIFT_CONNECTOR',
@@ -36,8 +34,9 @@ with DAG(dag_id="rs_tickit", schedule_interval=None, start_date=days_ago(2), tag
     )
 
     insert_event_query = f'''
-    INSERT INTO event 
-    SELECT * FROM s3_datalake.external_event;
+    insert into event 
+    SELECT eventid, venueid, catid, dateid, eventname, starttime::TIMESTAMP
+    FROM s3_datalake.event;
     '''
     task_insert_event_data = PostgresOperator(
         postgres_conn_id='REDSHIFT_CONNECTOR',
@@ -66,6 +65,7 @@ with DAG(dag_id="rs_tickit", schedule_interval=None, start_date=days_ago(2), tag
 	likevegas boolean,
 	likebroadway boolean,
 	likemusicals boolean);
+    DELETE FROM users;
     '''
     create_table_users = PostgresOperator(
         postgres_conn_id='REDSHIFT_CONNECTOR',
@@ -74,8 +74,10 @@ with DAG(dag_id="rs_tickit", schedule_interval=None, start_date=days_ago(2), tag
     )
 
     insert_users_query = f'''
-    INSERT INTO users 
-    SELECT * FROM s3_datalake.external_users;
+    insert into users
+    SELECT userid, username, firstname, lastname, city, state, email, phone, likesports, liketheatre, likeconcerts, 
+    likejazz, likeclassical, likeopera, likerock, likevegas, likebroadway, likemusicals
+    FROM s3_datalake.users;
     '''
     task_insert_users_data = PostgresOperator(
         postgres_conn_id='REDSHIFT_CONNECTOR',
@@ -90,6 +92,7 @@ with DAG(dag_id="rs_tickit", schedule_interval=None, start_date=days_ago(2), tag
 	venuecity varchar(30),
 	venuestate char(2),
 	venueseats integer);
+    DELETE FROM venue;
     '''
     create_table_venue = PostgresOperator(
         postgres_conn_id='REDSHIFT_CONNECTOR',
@@ -98,8 +101,9 @@ with DAG(dag_id="rs_tickit", schedule_interval=None, start_date=days_ago(2), tag
     )
 
     insert_venue_query = f'''
-    INSERT INTO venue 
-    SELECT * FROM s3_datalake.external_venue;
+    insert into venue 
+    SELECT venueid, venuename, venuecity, venuestate, nullif(venueseats, '\\\\N')::INTEGER
+    FROM s3_datalake.venue;
     '''
     task_insert_venue_data = PostgresOperator(
         postgres_conn_id='REDSHIFT_CONNECTOR',
@@ -113,6 +117,7 @@ with DAG(dag_id="rs_tickit", schedule_interval=None, start_date=days_ago(2), tag
 	catgroup varchar(10),
 	catname varchar(10),
 	catdesc varchar(50));
+    DELETE FROM category;
     '''
     create_table_category = PostgresOperator(
         postgres_conn_id='REDSHIFT_CONNECTOR',
@@ -121,8 +126,9 @@ with DAG(dag_id="rs_tickit", schedule_interval=None, start_date=days_ago(2), tag
     )
 
     insert_category_query = f'''
-    INSERT INTO category 
-    SELECT * FROM s3_datalake.external_category;
+    insert into category 
+    SELECT catid, catgroup, catname, catdesc
+    FROM s3_datalake.category;
     '''
     task_insert_category_data = PostgresOperator(
         postgres_conn_id='REDSHIFT_CONNECTOR',
@@ -139,7 +145,8 @@ with DAG(dag_id="rs_tickit", schedule_interval=None, start_date=days_ago(2), tag
 	month character(5) not null,
 	qtr character(5) not null,
 	year smallint not null,
-	holiday boolean));
+	holiday boolean);
+    DELETE FROM date;
     '''
     create_table_date = PostgresOperator(
         postgres_conn_id='REDSHIFT_CONNECTOR',
@@ -148,8 +155,9 @@ with DAG(dag_id="rs_tickit", schedule_interval=None, start_date=days_ago(2), tag
     )
 
     insert_date_query = f'''
-    INSERT INTO date 
-    SELECT * FROM s3_datalake.external_date;
+    insert into "date"
+    SELECT dateid, caldate::DATE, "day", week, "month", qtr, "year", holiday
+    FROM s3_datalake."date";
     '''
     task_insert_date_data = PostgresOperator(
         postgres_conn_id='REDSHIFT_CONNECTOR',
@@ -167,6 +175,7 @@ with DAG(dag_id="rs_tickit", schedule_interval=None, start_date=days_ago(2), tag
 	priceperticket decimal(8,2),
 	totalprice decimal(8,2),
 	listtime timestamp);
+    DELETE FROM listing;
     '''
     create_table_listing = PostgresOperator(
         postgres_conn_id='REDSHIFT_CONNECTOR',
@@ -175,8 +184,9 @@ with DAG(dag_id="rs_tickit", schedule_interval=None, start_date=days_ago(2), tag
     )
 
     insert_listing_query = f'''
-    INSERT INTO listing 
-    SELECT * FROM s3_datalake.external_listing;
+    insert into listing 
+    SELECT listid, sellerid, eventid, dateid, numtickets, priceperticket, totalprice, listtime::TIMESTAMP
+    FROM s3_datalake.listing;
     '''
     task_insert_listing_data = PostgresOperator(
         postgres_conn_id='REDSHIFT_CONNECTOR',
@@ -196,6 +206,7 @@ with DAG(dag_id="rs_tickit", schedule_interval=None, start_date=days_ago(2), tag
 	pricepaid decimal(8,2),
 	commission decimal(8,2),
 	saletime timestamp);
+    DELETE FROM sales;
     '''
     create_table_sales = PostgresOperator(
         postgres_conn_id='REDSHIFT_CONNECTOR',
@@ -204,100 +215,14 @@ with DAG(dag_id="rs_tickit", schedule_interval=None, start_date=days_ago(2), tag
     )
 
     insert_sales_query = f'''
-    INSERT INTO sales 
-    SELECT * FROM s3_datalake.external_sales;
+    insert into sales
+    SELECT salesid, listid, sellerid, buyerid, eventid, dateid, qtysold, pricepaid, commission, saletime::TIMESTAMP
+    FROM s3_datalake.sales;
     '''
     task_insert_sales_data = PostgresOperator(
         postgres_conn_id='REDSHIFT_CONNECTOR',
         task_id='task_insert_sales_data',
         sql=insert_sales_query
-    )
-
-    create_fact_sales_query = '''
-    CREATE TABLE IF NOT EXISTS sales(
-	salesid integer not null,
-	listid integer not null,
-	sellerid integer not null,
-	buyerid integer not null,
-	eventid integer not null,
-	dateid smallint not null,
-	qtysold smallint not null,
-	pricepaid decimal(8,2),
-	commission decimal(8,2),
-	saletime timestamp);
-    '''
-    create_table_fact_sales = PostgresOperator(
-        postgres_conn_id='REDSHIFT_CONNECTOR',
-        task_id='setup__create_fact_sales_table',
-        sql=create_fact_sales_query
-    )
-
-    insert_fact_sales_query = f'''
-    INSERT INTO sales 
-    SELECT * FROM s3_datalake.external_sales;
-    '''
-    task_insert_fact_sales_data = PostgresOperator(
-        postgres_conn_id='REDSHIFT_CONNECTOR',
-        task_id='task_insert_fact_sales_data',
-        sql=insert_fact_sales_query
-    )
-
-    create_dim_event_query = '''
-    CREATE TABLE IF NOT EXISTS sales(
-	salesid integer not null,
-	listid integer not null,
-	sellerid integer not null,
-	buyerid integer not null,
-	eventid integer not null,
-	dateid smallint not null,
-	qtysold smallint not null,
-	pricepaid decimal(8,2),
-	commission decimal(8,2),
-	saletime timestamp);
-    '''
-    create_table_dim_event = PostgresOperator(
-        postgres_conn_id='REDSHIFT_CONNECTOR',
-        task_id='setup__create_dim_event_table',
-        sql=create_dim_event_query
-    )
-
-    insert_dim_event_query = f'''
-    INSERT INTO sales 
-    SELECT * FROM s3_datalake.external_sales;
-    '''
-    task_insert_dim_event_data = PostgresOperator(
-        postgres_conn_id='REDSHIFT_CONNECTOR',
-        task_id='task_insert_dim_event_data',
-        sql=insert_dim_event_query
-    )
-
-    create_dim_users_query = '''
-    CREATE TABLE IF NOT EXISTS sales(
-	salesid integer not null,
-	listid integer not null,
-	sellerid integer not null,
-	buyerid integer not null,
-	eventid integer not null,
-	dateid smallint not null,
-	qtysold smallint not null,
-	pricepaid decimal(8,2),
-	commission decimal(8,2),
-	saletime timestamp);
-    '''
-    create_table_dim_users = PostgresOperator(
-        postgres_conn_id='REDSHIFT_CONNECTOR',
-        task_id='setup__create_dim_users_table',
-        sql=create_dim_users_query
-    )
-
-    insert_dim_users_query = f'''
-    INSERT INTO sales 
-    SELECT * FROM s3_datalake.external_sales;
-    '''
-    task_insert_dim_users_data = PostgresOperator(
-        postgres_conn_id='REDSHIFT_CONNECTOR',
-        task_id='task_insert_dim_users_data',
-        sql=insert_dim_users_query
     )
 
 
@@ -308,6 +233,3 @@ with DAG(dag_id="rs_tickit", schedule_interval=None, start_date=days_ago(2), tag
     create_ext_schema >> create_table_date >> task_insert_date_data
     create_ext_schema >> create_table_listing >> task_insert_listing_data
     create_ext_schema >> create_table_sales >> task_insert_sales_data
-    [task_insert_date_data, task_insert_sales_data, task_insert_listing_data] >> create_table_fact_sales >> task_insert_fact_sales_data
-    [task_insert_category_data, task_insert_venue_data, task_insert_event_data] >> create_table_dim_event >> task_insert_dim_event_data
-    task_insert_users_data >> create_table_dim_users >> task_insert_dim_users_data
