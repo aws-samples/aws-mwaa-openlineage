@@ -10,3 +10,7 @@ set -o verbose
 # compile runtime requirements
 pip-compile -r ./orchestration/runtime/mwaa/requirements.in
 pip-compile -r ./batch/runtime/tablelineage/requirements.in
+
+# zip the plugins (if required)
+cd ./orchestration/runtime/mwaa/plugins; zip -r ../plugins.zip ./; cd ../../../../
+cd ./orchestration/runtime/mwaa/plugins; ls; cd ../../../../
