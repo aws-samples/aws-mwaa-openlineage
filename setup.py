@@ -11,7 +11,6 @@ setuptools.setup(
     description="Governed data lake",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    author="mcgregf",
     package_dir={"AwsCdkDatalake": "."},
     packages=setuptools.find_packages(
         include=["batch", "foundation", "governance", "orchestration"]
@@ -26,8 +25,6 @@ setuptools.setup(
             "awscli",
             "boto3",
             "pip==21.3.1",
-            # for vscode
-            "black",
             # for lineage
             "openlineage-airflow",
             "google-cloud-bigquery",
