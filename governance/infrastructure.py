@@ -32,7 +32,6 @@ class Lineage(Stack):
         VPC: ec2.Vpc,
         LINEAGE_INSTANCE: ec2.InstanceType,
         OPENLINEAGE_SG: ec2.SecurityGroup,
-        KEY_PAIR: str,
         OPENLINEAGE_NAMESPACE: str,
         **kwargs
 
@@ -48,6 +47,9 @@ class Lineage(Stack):
                 iam.ManagedPolicy.from_aws_managed_policy_name(
                     "CloudWatchAgentServerPolicy"
                 ),
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "AmazonSSMManagedInstanceCore"
+                ),
             ],
         )
 
@@ -61,7 +63,6 @@ class Lineage(Stack):
             ),
             vpc=VPC,
             vpc_subnets={"subnet_type": ec2.SubnetType.PUBLIC},
-            key_name=KEY_PAIR,
             role=lineage_instance_role,
             security_group=OPENLINEAGE_SG,
             init=ec2.CloudFormationInit.from_config_sets(
@@ -159,12 +160,6 @@ class Lineage(Stack):
         )
 
         # create Outputs
-        CfnOutput(
-            self,
-            "LineageInstanceSSH",
-            value=f"ssh -i ~/Downloads/{KEY_PAIR}.pem ec2-user@{lineage_instance.instance_public_dns_name}",
-            export_name="lineage-instance-ssh",
-        )
         CfnOutput(
             self,
             "LineageUI",
