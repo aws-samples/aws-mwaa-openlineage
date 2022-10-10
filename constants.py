@@ -5,8 +5,6 @@ from aws_cdk import App, Stack, Environment
 from aws_cdk import aws_dynamodb as dynamodb
 from aws_cdk import aws_ec2 as ec2
 
-# Update EC2 Key Pair
-DEV_KEY_PAIR = "mwaa-openlineage"
 
 # Update client external ip to access OpenLineage UI
 EXTERNAL_IP = "255.255.255.255"

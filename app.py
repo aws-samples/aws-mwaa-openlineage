@@ -19,18 +19,17 @@ app = App()
 
 
 s3 = S3(app,
-        "s3",
+        "vpc-s3",
         EXTERNAL_IP=constants.EXTERNAL_IP,
         DEV_GLUE_DB=constants.DEV_GLUE_DB,
         env=constants.DEV_ENV,)
 
 lineage = Lineage(
     app,
-    "lineage",
+    "marquez",
     VPC=s3.VPC,
     LINEAGE_INSTANCE=constants.DEV_LINEAGE_INSTANCE,
     OPENLINEAGE_NAMESPACE=constants.DEV_OPENLINEAGE_NAMESPACE,
-    KEY_PAIR=constants.DEV_KEY_PAIR,
     OPENLINEAGE_SG=s3.OPENLINEAGE_SG,
     env=constants.DEV_ENV,
 )
@@ -43,9 +42,6 @@ redshift = Redshift(
     REDSHIFT_NAMESPACE=constants.DEV_REDSHIFT_NAMESPACE,
     REDSHIFT_WORKGROUP=constants.DEV_REDSHIFT_WORKGROUP,
     REDSHIFT_MASTER_USERNAME=constants.DEV_REDSHIFT_MASTER_USERNAME,
-    REDSHIFT_NUM_NODES=constants.DEV_REDSHIFT_NUM_NODES,
-    REDSHIFT_NODE_TYPE=constants.DEV_REDSHIFT_NODE_TYPE,
-    REDSHIFT_CLUSTER_TYPE=constants.DEV_REDSHIFT_CLUSTER_TYPE,
     REDSHIFT_SG=s3.REDSHIFT_SG,
     env=constants.DEV_ENV,
 )
