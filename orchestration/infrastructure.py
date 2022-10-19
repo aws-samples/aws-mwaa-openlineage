@@ -55,6 +55,7 @@ class MWAA(Stack):
             removal_policy=RemovalPolicy.DESTROY,
             auto_delete_objects=True,
             versioned=True,
+            enforce_ssl=True,
         )
         # tag the bucket
         Tags.of(s3_bucket_mwaa).add("purpose", "MWAA")
