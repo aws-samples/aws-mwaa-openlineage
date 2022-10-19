@@ -109,6 +109,7 @@ class S3(Stack):
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             removal_policy=RemovalPolicy.DESTROY,
             auto_delete_objects=True,
+            enforce_ssl=True,
         )
         Tags.of(s3_bucket_logs).add("purpose", "LOGS")
 
@@ -122,6 +123,7 @@ class S3(Stack):
             removal_policy=RemovalPolicy.DESTROY,
             auto_delete_objects=True,
             server_access_logs_bucket=s3_bucket_logs,
+            enforce_ssl=True,
         )
         Tags.of(s3_bucket_raw).add("purpose", "RAW")
 
@@ -180,6 +182,7 @@ class S3(Stack):
             ),
             database_name=DEV_GLUE_DB,
             role=crawler_role.role_name,
+
         )
 
         aws_custom = _cr.AwsCustomResource(

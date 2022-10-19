@@ -5,16 +5,16 @@ from aws_cdk import pipelines, Aws
 # The AWS CDK application entry point
 import constants
 # from deployment import CDKDataLake
-from cdk_nag import AwsSolutionsChecks
+from cdk_nag import AwsSolutionsChecks, NagSuppressions
 # get stacks
 from storage.infrastructure import S3
-from governance.infrastructure import Lineage
+from governance.infrastructure import Marquez
 from orchestration.infrastructure import MWAA
 from consume.infrastructure import Redshift
 
 app = App()
 #This enables security validation through cdk_nag
-#Aspects.of(app).add(AwsSolutionsChecks(verbose=True))
+Aspects.of(app).add(AwsSolutionsChecks(verbose=True))
 
 
 
@@ -23,8 +23,33 @@ s3 = S3(app,
         EXTERNAL_IP=constants.EXTERNAL_IP,
         DEV_GLUE_DB=constants.DEV_GLUE_DB,
         env=constants.DEV_ENV,)
+NagSuppressions.add_stack_suppressions(
+    stack=s3,
+    suppressions=[{
+        "id": "AwsSolutions-EC23",
+        "reason": "No security group have allow inbound to any IP"
+    },{
+        "id": "AwsSolutions-IAM4",
+        "reason": "Allow managed policies to be used"
+    },{
+        "id": "AwsSolutions-IAM5",
+        "reason": "Using CDK IAM allow permissions."
+    },{
+        "id": "AwsSolutions-GL1",
+        "reason": "Using Crawler default setting."
+    },{
+        "id": "AwsSolutions-VPC7",
+        "reason": "No VPC Flow log enabled. Default behaviour."
+    },{
+        "id": "AwsSolutions-L1",
+        "reason": "Referencing default runtime used by CDK for Python3.8"
+    },{
+        "id": "AwsSolutions-S1",
+        "reason": "Bucket will be used to store server access logs."
+    },
+    ])
 
-lineage = Lineage(
+marquez = Marquez(
     app,
     "marquez",
     VPC=s3.VPC,
@@ -33,6 +58,20 @@ lineage = Lineage(
     OPENLINEAGE_SG=s3.OPENLINEAGE_SG,
     env=constants.DEV_ENV,
 )
+NagSuppressions.add_stack_suppressions(
+    stack=marquez,
+    suppressions=[{
+        "id": "AwsSolutions-EC29",
+        "reason": "No termination protection to enable cleanup of resources."
+    },{
+        "id": "AwsSolutions-IAM4",
+        "reason": "Allow managed policies to be used"
+    },{
+        "id": "AwsSolutions-SMG4",
+        "reason": "Temporary solution no secret rotation. Default behaviour."
+    }
+    ])
+
 redshift = Redshift(
     app,
     "redshift",
@@ -46,6 +85,20 @@ redshift = Redshift(
     env=constants.DEV_ENV,
 )
 
+NagSuppressions.add_stack_suppressions(
+    stack=redshift,
+    suppressions=[{
+        "id": "AwsSolutions-IAM5",
+        "reason": "Using CDK IAM allow permissions."
+    },{
+        "id": "AwsSolutions-IAM4",
+        "reason": "Allow managed policies to be used"
+    },{
+        "id": "AwsSolutions-SMG4",
+        "reason": "Temporary solution no secret rotation. Default behaviour."
+    }
+    ])
+
 mwaa = MWAA(
     app,
     "mwaa",
@@ -58,6 +111,25 @@ mwaa = MWAA(
     env=constants.DEV_ENV,
 )
 mwaa.add_dependency(redshift)
+NagSuppressions.add_stack_suppressions(
+    stack=mwaa,
+    suppressions=[{
+        "id": "AwsSolutions-KMS5",
+        "reason": "Temporary solution no KMS rotation. Default behaviour."
+    },{
+        "id": "AwsSolutions-IAM4",
+        "reason": "Allow managed policies to be used"
+    },{
+        "id": "AwsSolutions-IAM5",
+        "reason": "Using CDK IAM allow permissions."
+    },{
+        "id": "AwsSolutions-L1",
+        "reason": "Referencing default runtime used by CDK for Python3.8"
+    },{
+        "id": "AwsSolutions-S1",
+        "reason": "No server access logs. Only contain DAG code and metadata."
+    },
+    ])
 
 # Production pipeline
 # Pipeline(app, f"{constants.CDK_APP_NAME}-pipeline", env=constants.PIPELINE_ENV)

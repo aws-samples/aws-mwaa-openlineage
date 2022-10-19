@@ -17,7 +17,7 @@ from pathlib import Path
 dirname = Path(__file__).parent
 
 
-class Lineage(Stack):
+class Marquez(Stack):
     """
     Deploy ec2 instance
     Clone marquez
@@ -65,6 +65,7 @@ class Lineage(Stack):
             vpc_subnets={"subnet_type": ec2.SubnetType.PUBLIC},
             role=lineage_instance_role,
             security_group=OPENLINEAGE_SG,
+            detailed_monitoring=True,
             init=ec2.CloudFormationInit.from_config_sets(
                 config_sets={"default": ["prereqs", "marquez"]},
                 # order: packages -> groups -> users-> sources -> files -> commands -> services
