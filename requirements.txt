@@ -186,7 +186,7 @@ nest-asyncio==1.5.1
     #   nbclient
 notebook==6.4.5
     # via widgetsnbextension
-numpy==1.21.4
+numpy==1.22.0
     # via
     #   altair
     #   great-expectations
