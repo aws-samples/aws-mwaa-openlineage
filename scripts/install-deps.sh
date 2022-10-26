@@ -3,6 +3,8 @@
 set -o errexit
 set -o verbose
 
+# Install piptools
+.env/bin/python -m pip install pip-tools
 # build requirements.txt from setup.py
 .env/bin/python -m piptools compile setup.py --extra dev 
 # Install ckd project dependencies
