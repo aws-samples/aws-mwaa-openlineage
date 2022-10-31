@@ -61,17 +61,16 @@ class MWAA(Stack):
         Tags.of(s3_bucket_mwaa).add("purpose", "MWAA")
 
         # deploy files to mwaa bucket
-        if MWAA_DEPLOY_FILES:
-            airflow_files = s3_deploy.BucketDeployment(
-                self,
-                "deploy_requirements",
-                destination_bucket=s3_bucket_mwaa,
-                sources=[
-                    s3_deploy.Source.asset("./orchestration/runtime/mwaa/"),
-                ],
-                include=["requirements.txt", "plugins.zip"],
-                exclude=["requirements.in", "dags/*", "dags.zip", "plugins/*"],
-            )
+        airflow_files = s3_deploy.BucketDeployment(
+            self,
+            "deploy_requirements",
+            destination_bucket=s3_bucket_mwaa,
+            sources=[
+                s3_deploy.Source.asset("./orchestration/runtime/mwaa/"),
+            ],
+            include=["requirements.txt", "plugins.zip"],
+            exclude=["requirements.in", "dags/*", "dags.zip", "plugins/*"],
+        )
 
         # create vpc endpoints for mwaa
         mwwa_api_endpoint = VPC.add_interface_endpoint(
@@ -219,7 +218,7 @@ class MWAA(Stack):
             #plugins_s3_object_version=MWAA_PLUGINS_VERSION,
             requirements_s3_path="requirements.txt",
             #requirements_s3_object_version=MWAA_REQUIREMENTS_VERSION,
-            source_bucket_arn=s3_bucket_mwaa.bucket_arn,
+            source_bucket_arn=airflow_files.deployed_bucket.bucket_arn,
             network_configuration=mwaa.CfnEnvironment.NetworkConfigurationProperty(
                 security_group_ids=[AIRFLOW_SG.security_group_id],
                 subnet_ids=VPC.select_subnets(
