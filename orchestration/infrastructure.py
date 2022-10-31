@@ -68,8 +68,8 @@ class MWAA(Stack):
             sources=[
                 s3_deploy.Source.asset("./orchestration/runtime/mwaa/"),
             ],
-            include=["requirements.txt", "plugins.zip"],
-            exclude=["requirements.in", "dags/*", "dags.zip", "plugins/*"],
+            include=["requirements.txt", "plugins.zip", "dags/*"],
+            exclude=["requirements.in", "dags.zip", "plugins/*",".DS_Store"],
         )
 
         # create vpc endpoints for mwaa
