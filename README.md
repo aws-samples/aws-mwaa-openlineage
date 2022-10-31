@@ -5,7 +5,7 @@ The template has the following prerequisites:
 * An AWS account (https://console.aws.amazon.com/console/home)
 * Amazon Linux 2 with AWS CDK (https://aws.amazon.com/getting-started/guides/setup-cdk/module-two/) and Docker CLI (https://docs.aws.amazon.com/lambda/latest/dg/images-create.html) installed. Alternatively, setting up an AWS Cloud9 environment (https://docs.aws.amazon.com/cloud9/latest/user-guide/create-environment-main.html) will satisfy this requirement.
 
-*Deployment steps*
+**Deployment steps**
 
 Clone Github repository and install python dependencies. Bootstrap CDK (https://docs.aws.amazon.com/cdk/v2/guide/bootstrapping.html) if required. 
 
@@ -39,14 +39,14 @@ Deploy MWAA Stack. This stack creates an MWAA environment and is the last step o
 ```bash
 cdk deploy mwaa
 ```
-Test-run of sample data pipeline
+**Test-run of sample data pipeline**
 
 On MWAA, there is already an example data pipeline deploys which consists of two DAGs. It builds a star schema on top of the TICKIT sample database (https://docs.aws.amazon.com/redshift/latest/dg/c_sampledb.html). One DAG is responsible for loading data from the S3 data lake into a Redshift staging layer while the second DAG loads data from the staging layer to the dimensional model.
 [Image: Image.jpg]Open MWAA UI through the URL obtained the in deployment step 6) and launch the following DAG <Name>. As part of the run, lineage metadata will be send to the Marquez.
 
 After the DAG has been executed, open Marquez’s URL obtained in deployment step 4). On Marquez, you will find lineage metadata for the computed star schema and according data assets on Redshift.
 
-*Clean up*
+**Clean up**
 
 Delete the CDK stacks to avoid ongoing charges for the resources that you have created. Run the cdk destroy command  in the aws-mwaa-openlineage project directory so that all resources are undeployed.
 ```bash
