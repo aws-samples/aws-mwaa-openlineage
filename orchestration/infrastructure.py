@@ -237,54 +237,6 @@ class MWAA(Stack):
                 webserver_logs={"enabled": True, "logLevel": "INFO"},
             ),
         )
-        # don't deploy until after requirements is done
-        if MWAA_DEPLOY_FILES:
-            airflow_env.node.add_dependency(airflow_files)
-
-        # repo for dag code
-        repo_dag = codecommit.Repository(
-            self,
-            "repo_dag",
-            repository_name=MWAA_REPO_DAG_NAME,
-            description="MWAA Dag",
-            code=codecommit.Code.from_directory(
-                str(dirname.joinpath("runtime/mwaa/dags")),
-                "main",
-            ),
-        )
-
-        # # deploy dags
-        source_output = codepipeline.Artifact()
-        deploy_dags = codepipeline.Pipeline(
-            self,
-            "deploy_dags",
-            stages=[
-                codepipeline.StageProps(
-                    stage_name="Build",
-                    actions=[
-                        codepipeline_actions.CodeCommitSourceAction(
-                            action_name="DagsBuild",
-                            repository=repo_dag,
-                            branch="main",
-                            output=source_output,
-                            trigger=codepipeline_actions.CodeCommitTrigger.POLL,
-                            run_order=1,
-                        )
-                    ],
-                ),
-                codepipeline.StageProps(
-                    stage_name="Deploy",
-                    actions=[
-                        codepipeline_actions.S3DeployAction(
-                            action_name="S3Deploy",
-                            bucket=s3_bucket_mwaa,
-                            input=source_output,
-                            run_order=2,
-                        )
-                    ],
-                ),
-            ],
-        )
 
         # output the airflow ux
         CfnOutput(
