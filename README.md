@@ -13,8 +13,9 @@ Clone Github repository and install python dependencies. Bootstrap CDK (https://
 git clone https://github.com/aws-samples/aws-mwaa-openlineage (Not currently available)
 git clone https://gitlab.aws.dev/pvillena/aws-mwaa-openlineage (Internal)
 cd aws-mwaa-openlineage
-python3 -m venv .env
-source ./scripts/install-deps.sh
+python3 -m venv .env && source .env/bin/activate
+python -m pip install -r requirements.txt
+cd ./orchestration/runtime/mwaa/plugins; zip -r ../plugins.zip ./; cd ../../../../
 cdk bootstrap
 ```
 
