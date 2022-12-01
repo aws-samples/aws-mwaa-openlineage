@@ -19,10 +19,6 @@ from aws_cdk import (
     Stack,
     Tags,
 )
-from pathlib import Path
-
-# set path
-dirname = Path(__file__).parent
 
 
 class MWAA(Stack):
