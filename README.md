@@ -1,3 +1,7 @@
+##Automating data lineage on Amazon MWAA with OpenLineage
+
+In this repository, we show how to get started with data lineage on AWS using OpenLineage. This is an AWS Cloud Development Kit project (CDK) which deploys a pre-configured demo environment for evaluating and experiencing OpenLineage firsthand.
+
 ### Infrastructure provisioning using AWS CDK and AWS Cloudshell
 
 The template has the following prerequisites: 
@@ -10,12 +14,13 @@ The template has the following prerequisites:
 Clone Github repository and install python dependencies. Bootstrap CDK (https://docs.aws.amazon.com/cdk/v2/guide/bootstrapping.html) if required. 
 
 ```bash
-git clone https://github.com/aws-samples/aws-mwaa-openlineage (Not currently available)
-git clone https://gitlab.aws.dev/pvillena/aws-mwaa-openlineage (Internal)
+git clone https://github.com/aws-samples/aws-mwaa-openlineage 
 cd aws-mwaa-openlineage
 python3 -m venv .env && source .env/bin/activate
-python -m pip install -r requirements.txt
-cd ./orchestration/runtime/mwaa/plugins; zip -r ../plugins.zip ./; cd ../../../../
+python3 -m pip install -r requirements.txt
+cd ./orchestration/runtime/mwaa/plugins 
+zip -r ../plugins.zip ./
+cd ../../../../
 cdk bootstrap
 ```
 
