@@ -1,4 +1,4 @@
-##Automating data lineage on Amazon MWAA with OpenLineage
+## Automating data lineage on Amazon MWAA with OpenLineage
 
 In this repository, we show how to get started with data lineage on AWS using OpenLineage. This is an AWS Cloud Development Kit project (CDK) which deploys a pre-configured demo environment for evaluating and experiencing OpenLineage firsthand.
 
