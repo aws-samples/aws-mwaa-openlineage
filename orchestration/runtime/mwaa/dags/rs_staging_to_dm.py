@@ -3,8 +3,6 @@ from airflow.utils.dates import days_ago
 from airflow.providers.postgres.operators.postgres import PostgresOperator
 from airflow.models import Variable
 
-s3bucket = Variable.get('S3_BUCKET_RAW')
-
 with DAG(dag_id="rs_staging_to_dm", schedule_interval=None, start_date=days_ago(2), tags=['example']) as dag:
 
     create_fact_sales_query = '''

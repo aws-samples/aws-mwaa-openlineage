@@ -19,10 +19,6 @@ from aws_cdk import (
     Stack,
     Tags,
 )
-from pathlib import Path
-
-# set path
-dirname = Path(__file__).parent
 
 
 class MWAA(Stack):
@@ -61,17 +57,16 @@ class MWAA(Stack):
         Tags.of(s3_bucket_mwaa).add("purpose", "MWAA")
 
         # deploy files to mwaa bucket
-        if MWAA_DEPLOY_FILES:
-            airflow_files = s3_deploy.BucketDeployment(
-                self,
-                "deploy_requirements",
-                destination_bucket=s3_bucket_mwaa,
-                sources=[
-                    s3_deploy.Source.asset("./orchestration/runtime/mwaa/"),
-                ],
-                include=["requirements.txt", "plugins.zip"],
-                exclude=["requirements.in", "dags/*", "dags.zip", "plugins/*"],
-            )
+        airflow_files = s3_deploy.BucketDeployment(
+            self,
+            "deploy_requirements",
+            destination_bucket=s3_bucket_mwaa,
+            sources=[
+                s3_deploy.Source.asset("./orchestration/runtime/mwaa/"),
+            ],
+            include=["requirements.txt", "plugins.zip", "dags/*"],
+            exclude=["requirements.in", "dags.zip", "plugins/*",".DS_Store"],
+        )
 
         # create vpc endpoints for mwaa
         mwwa_api_endpoint = VPC.add_interface_endpoint(
@@ -219,7 +214,7 @@ class MWAA(Stack):
             #plugins_s3_object_version=MWAA_PLUGINS_VERSION,
             requirements_s3_path="requirements.txt",
             #requirements_s3_object_version=MWAA_REQUIREMENTS_VERSION,
-            source_bucket_arn=s3_bucket_mwaa.bucket_arn,
+            source_bucket_arn=airflow_files.deployed_bucket.bucket_arn,
             network_configuration=mwaa.CfnEnvironment.NetworkConfigurationProperty(
                 security_group_ids=[AIRFLOW_SG.security_group_id],
                 subnet_ids=VPC.select_subnets(
@@ -236,54 +231,6 @@ class MWAA(Stack):
                 dag_processing_logs={"enabled": True, "logLevel": "INFO"},
                 webserver_logs={"enabled": True, "logLevel": "INFO"},
             ),
-        )
-        # don't deploy until after requirements is done
-        if MWAA_DEPLOY_FILES:
-            airflow_env.node.add_dependency(airflow_files)
-
-        # repo for dag code
-        repo_dag = codecommit.Repository(
-            self,
-            "repo_dag",
-            repository_name=MWAA_REPO_DAG_NAME,
-            description="MWAA Dag",
-            code=codecommit.Code.from_directory(
-                str(dirname.joinpath("runtime/mwaa/dags")),
-                "main",
-            ),
-        )
-
-        # # deploy dags
-        source_output = codepipeline.Artifact()
-        deploy_dags = codepipeline.Pipeline(
-            self,
-            "deploy_dags",
-            stages=[
-                codepipeline.StageProps(
-                    stage_name="Build",
-                    actions=[
-                        codepipeline_actions.CodeCommitSourceAction(
-                            action_name="DagsBuild",
-                            repository=repo_dag,
-                            branch="main",
-                            output=source_output,
-                            trigger=codepipeline_actions.CodeCommitTrigger.POLL,
-                            run_order=1,
-                        )
-                    ],
-                ),
-                codepipeline.StageProps(
-                    stage_name="Deploy",
-                    actions=[
-                        codepipeline_actions.S3DeployAction(
-                            action_name="S3Deploy",
-                            bucket=s3_bucket_mwaa,
-                            input=source_output,
-                            run_order=2,
-                        )
-                    ],
-                ),
-            ],
         )
 
         # output the airflow ux

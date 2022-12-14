@@ -1,188 +1,60 @@
-# AWS CDK - Datalake
+##Automating data lineage on Amazon MWAA with OpenLineage
 
-Use the AWS CDK to create a data lake.
+In this repository, we show how to get started with data lineage on AWS using OpenLineage. This is an AWS Cloud Development Kit project (CDK) which deploys a pre-configured demo environment for evaluating and experiencing OpenLineage firsthand.
 
------
-### Set up the environment
+### Infrastructure provisioning using AWS CDK and AWS Cloudshell
 
-Create a Cloud9 Environment
+The template has the following prerequisites: 
 
-Navigate to: https://us-east-1.console.aws.amazon.com/cloud9/home/create
+* An AWS account (https://console.aws.amazon.com/console/home)
+* Amazon Linux 2 with AWS CDK (https://aws.amazon.com/getting-started/guides/setup-cdk/module-two/) and Docker CLI (https://docs.aws.amazon.com/lambda/latest/dg/images-create.html) installed. Alternatively, setting up an AWS Cloud9 environment (https://docs.aws.amazon.com/cloud9/latest/user-guide/create-environment-main.html) will satisfy this requirement.
 
-Name: openlineage_cloud9
+**Deployment steps**
 
-Instance type: t3.small
-
-At Cloud9 terminal session:
+Clone Github repository and install python dependencies. Bootstrap CDK (https://docs.aws.amazon.com/cdk/v2/guide/bootstrapping.html) if required. 
 
 ```bash
-# Clone Git repository
-git clone https://gitlab.aws.dev/analytics-apj/anz/aws-cdk-datalake.git
-# Create a personal access token in gitlab: https://gitlab.aws.dev/-/profile/personal_access_tokens
-# Username for 'https://gitlab.aws.dev/analytics-apj/anz/aws-cdk-datalake.git': 
-pat
-# Password for 'https://pat@gitlab.aws.dev/analytics-apj/anz/aws-cdk-datalake.git':
-<Enter personal access token>
-# move to directory
-cd aws-cdk-datalake
-# create the virtual environment and install dependencies
-python -m venv .env
-# activate the virtual environment
-source .env/bin/activate
-# get pip tools
-.env/bin/python -m pip install pip-tools
-# run setup scripts
-# builds requirements.txt from setup.py and installs requirements
-# builds requirements.txt for each included requirements.in
-./scripts/install-deps.sh
-# confirm CDK version. Cloud9 comes preinstalled with CDK version 2.33.0
-cdk --version
-# bookstrap if required
+git clone https://github.com/aws-samples/aws-mwaa-openlineage 
+cd aws-mwaa-openlineage
+python3 -m venv .env && source .env/bin/activate
+python3 -m pip install -r requirements.txt
+cd ./orchestration/runtime/mwaa/plugins 
+zip -r ../plugins.zip ./
+cd ../../../../
 cdk bootstrap
 ```
 
-Note: When using cloud9 you have the option to enable auto-save. Go to Cloud9 menu &rarr; Preferences (&#8984; , ) &rarr; Experimental tab &rarr; Auto-Save Files: After Delay
+* Update the value for the variable EXTERNAL_IP in constants.py to your outbound IP for connecting to the internet. This will configure security groups so that you can access Marquez but block other clients. constants.py is found in the root folder of the cloned repository.
 
-Open constants.py
+* Set variable to outbound IP for connecting to the internet.
+EXTERNAL_IP = "255.255.255.255"
 
-Update DEV_KEY_PAIR with an existing key pair or create a new one through the console: https://us-east-1.console.aws.amazon.com/ec2/v2/home?region=us-east-1#CreateKeyPair 
-
-Update DEV_LF_ADMIN_USER. https://docs.aws.amazon.com/lake-formation/latest/dg/getting-started-setup.html
-
-Update EXTERNAL_IP with the local IP address.
-
-```python
-# Update Key Pair
-DEV_KEY_PAIR = "key_openlineage"
-
-# Update LakeFormation Admin
-DEV_LF_ADMIN_USER = "LFAdmin" 
-
-# Update client external ip. From your local, browse to https://ident.me
-EXTERNAL_IP = "<Local IP address>"
-```
-
-## Foundation - Amazon Virtual Private Cloud
-
-Use the AWS CDK to deploy an Amazon VPC across multiple availability zones.
-
+Deploy VPC_S3 Stack. This stack provisions a new VPC dedicated for this solution as well as the security groups that will be used by the different components. It will create a new S3 bucket and upload the source raw data based on the tickit sample database. This serves as the landing area from the OLTP database. We then need to parse the metadata of these files through a Glue crawler and this will facilitate the native integration between Amazon Redshift and the Amazon S3 data lake.
 ```bash
-# deploy the storage stack
-cdk deploy cdkdl-dev/storage/s3
+cdk deploy vpc-s3
 ```
-
-Copy the new york taxi data into the s3 bucket using the stack output <nytaxicopy> 
-
------
-
-## Governance - lineage
-
-Deploy marquez into a docker container running on EC2 as a UI for openlineage
-
+Deploy Lineage Stack. This stack creates an EC2 instance that will host the Marquez (OpenLineage) (https://marquezproject.ai/) web application. Access the Marquez web UI through the url, https://{ec2.public_dns_name}:3000/. This url is also available as part of the CDK outputs for the lineage stack.
 ```bash
-# deploy the lineage stack
-cdk deploy cdkdl-dev/governance/lineage
+cdk deploy marquez
 ```
-
-Follow up actions
-
-1. Connect to the openlineage UX. URL found at CDK or Cloudformation outputs  <LineageUI>
-2. Create openlineage variables in AWS Secrets Manager
-3. Navigate to AWS Secrets Manager: https://console.aws.amazon.com/secretsmanager/
-4. Select: Store a new secret
-5. Input:
-   1. Type = "Other type of secret"
-   2. Plaintext = "<OpenlineageAPI>"
-   3. Secret name = airflow/variables/OPENLINEAGE_URL
-   4. Secret rotation = No
-
-7. Create a secret in AWS Secrets Manager:
-   1. Type = "Other type of secret"
-   2. Plaintext = "cdkdl-dev"
-   3. Secret Name = airflow/variables/OPENLINEAGE_NAMESPACE
-   4. Secret rotation = No
-
------
-
-## Batch - Glue catalog
-
-Create a glue database and glue crawler
-
+Deploy Redshift Stack. This stack creates a Redshift Serverless (https://aws.amazon.com/redshift/redshift-serverless/) endpoint.
 ```bash
-# deploy the glue stack
-cdk deploy cdkdl-dev/batch/glue
+cdk deploy redshift
 ```
-
------
-
-## Query - Amazon Redshift
-
-1. Build the Redshift cluster
-2. Create the cluster password in secrets manager
-
+Deploy MWAA Stack. This stack creates an MWAA environment and is the last step of the deployment. You can access the MWAA UI (https://docs.aws.amazon.com/mwaa/latest/userguide/access-airflow-ui.html) through the url provided in CDK output. 
 ```bash
-# deploy the redshift stack
-cdk deploy cdkdl-dev/consume/redshift
+cdk deploy mwaa
 ```
+**Test-run of sample data pipeline**
 
-Follow up actions:
-1. Get the Redshift connection string from CDK Output.
-2. Update the password in the connection string. The Redshift password can be found in AWS Secrets Manager with secret name: "REDSHIFT_PASSWORD" 
-3. Create a secret in AWS Secrets Manager:
-   1. key = "airflow/connections/REDSHIFT_CONNECTOR"
-   1. value = "Redshift connection_string"
------
+On MWAA, there is already an example data pipeline deploys which consists of two DAGs. It builds a star schema on top of the TICKIT sample database (https://docs.aws.amazon.com/redshift/latest/dg/c_sampledb.html). One DAG is responsible for loading data from the S3 data lake into a Redshift staging layer while the second DAG loads data from the staging layer to the dimensional model.
+[Image: Image.jpg]Open MWAA UI through the URL obtained the in deployment step 6) and launch the following DAG <Name>. As part of the run, lineage metadata will be send to the Marquez.
 
-## Orchestration - Amazon Managed Workflows for Apache AirFlow
+After the DAG has been executed, open Marquez’s URL obtained in deployment step 4). On Marquez, you will find lineage metadata for the computed star schema and according data assets on Redshift.
 
-1. Build the Amazon MWAA S3 bucket
-1. Build the Amazon MWAA Env
+**Clean up**
 
+Delete the CDK stacks to avoid ongoing charges for the resources that you have created. Run the cdk destroy command  in the aws-mwaa-openlineage project directory so that all resources are undeployed.
 ```bash
-# zip the plugins (if required)
-cd ./orchestration/runtime/mwaa/plugins; zip -r ../plugins.zip ./; cd ../../../../
-cd ./orchestration/runtime/mwaa/plugins; ls; cd ../../../../
-# deploy mwaa
-cdk deploy cdkdl-dev/orchestration/mwaa
-# check the requirements loaded correctly ...
-# check the plugins loaded correctly
+cdk destroy --all
 ```
-
-1. Open MWAA UX: <MWAAWebserverUrl>
-2. Execute the "hello_world" DAG
-    1. Confirm the execution details appear in the openlineage UX
-
------
-
-## Query - Amazon Athena
-
-```bash
-# deploy athena stakc
-npx cdk deploy cdkdl-dev/query/athena
-```
-
------
-## AWS Lake Formation
-
-1. Create administrators and lf roles
-1. Register the s3 bucket
-1. Create the databases
-
------
-## AWS Glue
-
-1. Create the crawler role and crawler for the raw bucket
-
------
-## Next Steps
-1. Create Athena view against crawled table to demonstrate FGAC
-1. Create EMR job to be executed from MWAA using transient cluster to create parquet file in curated bucket
-7. Create athena catalog and link to main account
-8. Set Athena query location bucket with s3
-9. + Send EMR Spark job via AirFlow
-11. Send Glue crawler job via AirFlow
-12. Send Redshift copy job via AirFlow
-13. Create S3 sensor with AirFlow, and register data via lineage?
-14. Remove local runner dependency for openlineage stack
-
-https://f11bff86-0f66-47b3-be91-4401f58aab47.c13.us-east-1.airflow.amazonaws.com

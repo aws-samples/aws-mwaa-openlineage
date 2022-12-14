@@ -14,7 +14,7 @@ from consume.infrastructure import Redshift
 
 app = App()
 #This enables security validation through cdk_nag
-Aspects.of(app).add(AwsSolutionsChecks(verbose=True))
+#Aspects.of(app).add(AwsSolutionsChecks(verbose=True))
 
 
 
@@ -130,8 +130,5 @@ NagSuppressions.add_stack_suppressions(
         "reason": "No server access logs. Only contain DAG code and metadata."
     },
     ])
-
-# Production pipeline
-# Pipeline(app, f"{constants.CDK_APP_NAME}-pipeline", env=constants.PIPELINE_ENV)
 
 app.synth()
