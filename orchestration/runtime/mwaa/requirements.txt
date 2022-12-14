@@ -16,7 +16,7 @@ autoflake==1.4
     # via openapi-python-client
 black==21.10b0
     # via openapi-python-client
-certifi==2021.10.8
+certifi==2022.12.7
     # via
     #   httpx
     #   requests
@@ -48,9 +48,9 @@ markupsafe==2.0.1
 mypy-extensions==0.4.3
     # via black
 openapi-python-client==0.10.7
-    # via -r ./orchestration/runtime/mwaa/requirements.in
+    # via -r requirements.in
 openlineage-airflow==0.11.0
-    # via -r ./orchestration/runtime/mwaa/requirements.in
+    # via -r requirements.in
 openlineage-integration-common[sql]==0.11.0
     # via openlineage-airflow
 openlineage-python==0.11.0
