@@ -1,0 +1,8 @@
+{
+    "devDependencies": {
+        "aws-cdk": "1.115.0"
+    },
+    "dependencies": {
+        "cdk-nag": "^2.17.2"
+    }
+}

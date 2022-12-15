@@ -1,0 +1,4 @@
+aws-cdk-lib==2.49.0
+awscli==1.26.4
+cdk-nag==2.19.8
+requests==2.28.1
