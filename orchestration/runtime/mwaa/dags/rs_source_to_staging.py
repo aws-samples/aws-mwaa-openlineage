@@ -8,8 +8,7 @@ with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_
     create external schema IF NOT EXISTS s3_datalake
     from data catalog
     database 'cdkdl-redshift'
-    iam_role default
-    create external database if not exists;
+    iam_role default;
     '''
     create_ext_schema = PostgresOperator(
         postgres_conn_id='REDSHIFT_CONNECTOR',
