@@ -96,6 +96,8 @@ class MWAA(Stack):
                 )
             ],
         )
+
+        s3_bucket_mwaa.grant_read_write(airflow_role)
         
         airflow_role.add_to_policy(
             iam.PolicyStatement(
@@ -105,31 +107,6 @@ class MWAA(Stack):
             )
         )
         
-        airflow_role.add_to_policy(
-            iam.PolicyStatement(
-                effect=iam.Effect.DENY,
-                actions=["s3:ListAllMyBuckets"],
-                resources=[
-                    s3_bucket_mwaa.bucket_arn,
-                    f"{s3_bucket_mwaa.bucket_arn}/*",
-                ]
-            )
-        )
-        
-        airflow_role.add_to_policy(
-            iam.PolicyStatement(
-                effect=iam.Effect.ALLOW,
-                actions=[
-                    "s3:GetObject*",
-                    "s3:GetBucket*",
-                    "s3:List*",
-                ],
-                resources=[
-                    s3_bucket_mwaa.bucket_arn,
-                    f"{s3_bucket_mwaa.bucket_arn}/*",
-                ],
-            )
-        )
         
         airflow_role.add_to_policy(
             iam.PolicyStatement(
