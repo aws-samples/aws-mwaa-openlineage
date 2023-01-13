@@ -33,6 +33,7 @@ class MWAA(Stack):
         id: str,
         MWAA_ENV_NAME: str,
         MWAA_ENV_CLASS: str,
+        MWAA_ENV_VERSION: str,
         MWAA_REPO_DAG_NAME: str,
         VPC: ec2.Vpc,
         AIRFLOW_SG: ec2.SecurityGroup,
@@ -96,6 +97,8 @@ class MWAA(Stack):
                 )
             ],
         )
+
+        s3_bucket_mwaa.grant_read_write(airflow_role)
         
         airflow_role.add_to_policy(
             iam.PolicyStatement(
@@ -105,31 +108,6 @@ class MWAA(Stack):
             )
         )
         
-        airflow_role.add_to_policy(
-            iam.PolicyStatement(
-                effect=iam.Effect.DENY,
-                actions=["s3:ListAllMyBuckets"],
-                resources=[
-                    s3_bucket_mwaa.bucket_arn,
-                    f"{s3_bucket_mwaa.bucket_arn}/*",
-                ]
-            )
-        )
-        
-        airflow_role.add_to_policy(
-            iam.PolicyStatement(
-                effect=iam.Effect.ALLOW,
-                actions=[
-                    "s3:GetObject*",
-                    "s3:GetBucket*",
-                    "s3:List*",
-                ],
-                resources=[
-                    s3_bucket_mwaa.bucket_arn,
-                    f"{s3_bucket_mwaa.bucket_arn}/*",
-                ],
-            )
-        )
         
         airflow_role.add_to_policy(
             iam.PolicyStatement(
@@ -197,6 +175,7 @@ class MWAA(Stack):
             "airflow_env",
             name=MWAA_ENV_NAME,
             environment_class=MWAA_ENV_CLASS,
+            airflow_version=MWAA_ENV_VERSION,
             airflow_configuration_options={
                 "core.load_default_connections": False,
                 "core.load_examples": False,

@@ -3,10 +3,6 @@ from airflow.models import Variable, Connection
 import os
 import sys
 
-
-os.environ[
-    "AIRFLOW__LINEAGE__BACKEND"
-] = "openlineage.lineage_backend.OpenLineageBackend"
 openlineage_url = Variable.get('OPENLINEAGE_URL', default_var='')
 os.environ["OPENLINEAGE_URL"] = openlineage_url
 openlineage_namespace = Variable.get('OPENLINEAGE_NAMESPACE', default_var='')

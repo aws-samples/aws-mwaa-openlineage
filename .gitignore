@@ -147,7 +147,6 @@ cdk.out/
 *.asset
 *apachelog*
 *appevent*
-*.zip
 .idea/
 # for mac
 *.DS_Store*
