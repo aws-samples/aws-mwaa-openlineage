@@ -25,6 +25,7 @@ setuptools.setup(
             "awscli",
             "boto3",
             "pip==21.3.1",
+            "cdk_nag",
             # for lineage
             "openlineage-airflow",
             "google-cloud-bigquery",
