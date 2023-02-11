@@ -137,7 +137,7 @@ ipykernel==6.16.2
     #   ipywidgets
     #   nbclassic
     #   notebook
-ipython==7.34.0
+ipython==8.10.0
     # via
     #   great-expectations
     #   ipykernel
