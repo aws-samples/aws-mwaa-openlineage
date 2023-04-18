@@ -25,7 +25,7 @@ with DAG(dag_id="rs_staging_to_dm", schedule_interval=None, start_date=days_ago(
     DELETE FROM public.fact_sales;
     '''
     create_table_fact_sales = RedshiftSQLOperator(
-        postgres_conn_id='REDSHIFT_CONNECTOR',
+        redshift_conn_id='REDSHIFT_CONNECTOR',
         task_id='setup__create_fact_sales_table',
         sql=create_fact_sales_query
     )
@@ -37,7 +37,7 @@ with DAG(dag_id="rs_staging_to_dm", schedule_interval=None, start_date=days_ago(
     inner join public."date" d on sl.dateid = d.dateid ;
     '''
     task_insert_fact_sales_data = RedshiftSQLOperator(
-        postgres_conn_id='REDSHIFT_CONNECTOR',
+        redshift_conn_id='REDSHIFT_CONNECTOR',
         task_id='task_insert_fact_sales_data',
         sql=insert_fact_sales_query
     )
@@ -65,7 +65,7 @@ with DAG(dag_id="rs_staging_to_dm", schedule_interval=None, start_date=days_ago(
     DELETE FROM public.dim_event;
     '''
     create_table_dim_event = RedshiftSQLOperator(
-        postgres_conn_id='REDSHIFT_CONNECTOR',
+        redshift_conn_id='REDSHIFT_CONNECTOR',
         task_id='setup__create_dim_event_table',
         sql=create_dim_event_query
     )
@@ -80,7 +80,7 @@ with DAG(dag_id="rs_staging_to_dm", schedule_interval=None, start_date=days_ago(
     inner join public.venue v on ev.venueid = v.venueid ;
     '''
     task_insert_dim_event_data = RedshiftSQLOperator(
-        postgres_conn_id='REDSHIFT_CONNECTOR',
+        redshift_conn_id='REDSHIFT_CONNECTOR',
         task_id='task_insert_dim_event_data',
         sql=insert_dim_event_query
     )
@@ -111,7 +111,7 @@ with DAG(dag_id="rs_staging_to_dm", schedule_interval=None, start_date=days_ago(
     DELETE FROM public.dim_users;
     '''
     create_table_dim_users = RedshiftSQLOperator(
-        postgres_conn_id='REDSHIFT_CONNECTOR',
+        redshift_conn_id='REDSHIFT_CONNECTOR',
         task_id='setup__create_dim_users_table',
         sql=create_dim_users_query
     )
@@ -123,7 +123,7 @@ with DAG(dag_id="rs_staging_to_dm", schedule_interval=None, start_date=days_ago(
     FROM public.users;
     '''
     task_insert_dim_users_data = RedshiftSQLOperator(
-        postgres_conn_id='REDSHIFT_CONNECTOR',
+        redshift_conn_id='REDSHIFT_CONNECTOR',
         task_id='task_insert_dim_users_data',
         sql=insert_dim_users_query
     )
