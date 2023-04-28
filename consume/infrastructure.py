@@ -15,7 +15,9 @@ from aws_cdk import (
     RemovalPolicy,
     Stack,
     SecretValue,
+    aws_glue_alpha as glue
 )
+import aws_cdk as cdk
 
 
 class Redshift(Stack):
@@ -26,12 +28,15 @@ class Redshift(Stack):
         scope: Construct,
         id: str,
         S3_BUCKET_RAW: s3.Bucket,
+        S3_BUCKET_CURATED: s3.Bucket,
         REDSHIFT_DB_NAME: str,
         REDSHIFT_NAMESPACE: str,
         REDSHIFT_WORKGROUP: str,
         REDSHIFT_MASTER_USERNAME: str,
         REDSHIFT_SG: ec2.SecurityGroup,
-        VPC=ec2.Vpc,
+        VPC: ec2.Vpc,
+        GLUE_SG: ec2.SecurityGroup,
+        LINEAGE_API_URL: str,
         **kwargs
     ):
         super().__init__(scope, id, **kwargs)
@@ -53,6 +58,20 @@ class Redshift(Stack):
                 iam.ManagedPolicy.from_aws_managed_policy_name("AmazonRedshiftAllCommandsFullAccess")
             ],
         )
+
+        glue_job_role: iam.IRole = iam.Role(
+            self,
+            "glue_job_role",
+            assumed_by=iam.ServicePrincipal("glue.amazonaws.com"),
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name("SecretsManagerReadWrite"),
+                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3FullAccess"),
+                iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSGlueServiceRole"),
+                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonRedshiftAllCommandsFullAccess"),
+                iam.ManagedPolicy.from_aws_managed_policy_name("CloudWatchLogsFullAccess"),
+                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonRedshiftFullAccess")
+            ],
+        )  # type: ignore
 
         S3_BUCKET_RAW.grant_read_write(redshift_cluster_role)
 
@@ -91,6 +110,64 @@ class Redshift(Stack):
                 ),
             removal_policy=RemovalPolicy.DESTROY,
         )
+
+        glue_vpc_connection = glue.Connection(
+            self,
+            "glueVPCConnection",
+            type=glue.ConnectionType.NETWORK,
+            connection_name="Glue VPC Connection",
+            description="Connection to force Glue jobs to run in the VPC.",
+            security_groups=[GLUE_SG],
+            subnet=VPC.private_subnets[0]
+        )
+
+        glue_temp_bucket = s3.Bucket(
+            self,
+            "glue-temp-dir",
+            encryption=s3.BucketEncryption.S3_MANAGED,
+            public_read_access=False,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            removal_policy=RemovalPolicy.DESTROY,
+            auto_delete_objects=True,
+            enforce_ssl=True,
+            lifecycle_rules=[
+                s3.LifecycleRule(enabled=True, expiration=cdk.Duration.days(7))
+            ]
+        )
+
+        glue.Job(
+            self,
+            "glueJob",
+            executable=glue.JobExecutable.python_etl(
+                glue_version=glue.GlueVersion.V4_0,
+                python_version=glue.PythonVersion.THREE,
+                script=glue.Code.from_asset("consume/runtime/glue/example_job/example_job.py"),
+                extra_jars=[glue.Code.from_asset("consume/runtime/glue/jars/openlineage-spark-0.22.0.jar")],
+                extra_jars_first=True
+            ),
+            connections=[glue_vpc_connection],
+            default_arguments={
+                "--conf": "spark.extraListeners=io.openlineage.spark.agent.OpenLineageSparkListener"
+                + f" --conf spark.openlineage.transport.url={LINEAGE_API_URL}"
+                + " --conf spark.openlineage.transport.type=http",
+                "--TempDir": f"s3://{glue_temp_bucket.bucket_name}/",
+                "--redshift_conn_string":
+                    f"jdbc:redshift://{REDSHIFT_WORKGROUP}.{Aws.ACCOUNT_ID}.{Aws.REGION}"
+                    + f".redshift-serverless.amazonaws.com:5439/{rs_namespace.db_name}",
+                "--redshift_user": REDSHIFT_MASTER_USERNAME,
+                "--redshift_password_secret_id": redshift_password.secret_arn,
+                "--output_bucket": S3_BUCKET_CURATED.bucket_name,
+                "--redshift_cluster_role": redshift_cluster_role.role_arn,
+                "--lineage_api_url": LINEAGE_API_URL,
+                "--additional-python-modules": "openlineage-python"
+            },
+            role=glue_job_role,
+            worker_count=4,
+            worker_type=glue.WorkerType.G_1_X,
+            continuous_logging=glue.ContinuousLoggingProps(enabled=True),
+            enable_profiling_metrics=True
+        )
+
 
         output_1 = CfnOutput(
             self,

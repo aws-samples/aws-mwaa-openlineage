@@ -27,15 +27,18 @@ attrs==22.2.0
     #   openlineage-airflow
     #   openlineage-integration-common
     #   openlineage-python
-aws-cdk-asset-awscli-v1==2.2.49
+aws-cdk-asset-awscli-v1==2.2.144
     # via aws-cdk-lib
 aws-cdk-asset-kubectl-v20==2.1.1
     # via aws-cdk-lib
-aws-cdk-asset-node-proxy-agent-v5==2.0.38
+aws-cdk-asset-node-proxy-agent-v5==2.0.119
     # via aws-cdk-lib
-aws-cdk-lib==2.59.0
+aws-cdk-aws-glue-alpha==2.75.0a0
+    # via AwsCdkDatalake (setup.py)
+aws-cdk-lib==2.75.0
     # via
     #   AwsCdkDatalake (setup.py)
+    #   aws-cdk-aws-glue-alpha
     #   cdk-nag
 awscli==1.27.44
     # via AwsCdkDatalake (setup.py)
@@ -75,6 +78,7 @@ colorama==0.4.4
 constructs==10.1.211
     # via
     #   AwsCdkDatalake (setup.py)
+    #   aws-cdk-aws-glue-alpha
     #   aws-cdk-lib
     #   cdk-nag
 cryptography==39.0.0
@@ -132,6 +136,8 @@ importlib-metadata==6.0.0
     # via
     #   great-expectations
     #   nbconvert
+importlib-resources==5.12.0
+    # via jsii
 ipykernel==6.16.2
     # via
     #   ipywidgets
@@ -162,11 +168,12 @@ jmespath==1.0.1
     # via
     #   boto3
     #   botocore
-jsii==1.73.0
+jsii==1.80.0
     # via
     #   aws-cdk-asset-awscli-v1
     #   aws-cdk-asset-kubectl-v20
     #   aws-cdk-asset-node-proxy-agent-v5
+    #   aws-cdk-aws-glue-alpha
     #   aws-cdk-lib
     #   cdk-nag
     #   constructs
@@ -310,6 +317,7 @@ publication==0.0.3
     #   aws-cdk-asset-awscli-v1
     #   aws-cdk-asset-kubectl-v20
     #   aws-cdk-asset-node-proxy-agent-v5
+    #   aws-cdk-aws-glue-alpha
     #   aws-cdk-lib
     #   cdk-nag
     #   constructs
@@ -434,6 +442,7 @@ typeguard==2.13.3
     #   aws-cdk-asset-awscli-v1
     #   aws-cdk-asset-kubectl-v20
     #   aws-cdk-asset-node-proxy-agent-v5
+    #   aws-cdk-aws-glue-alpha
     #   aws-cdk-lib
     #   cdk-nag
     #   constructs
@@ -463,7 +472,9 @@ websocket-client==1.4.2
 widgetsnbextension==4.0.5
     # via ipywidgets
 zipp==3.11.0
-    # via importlib-metadata
+    # via
+    #   importlib-metadata
+    #   importlib-resources
 
 # The following packages are considered to be unsafe in a requirements file:
 # pip

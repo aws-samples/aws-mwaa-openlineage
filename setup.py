@@ -18,7 +18,8 @@ setuptools.setup(
     install_requires=[
         # cdk v2
         "aws-cdk-lib>=2.33.0",
-        "constructs>=10.1.0"
+        "constructs>=10.1.0",
+        "aws-cdk.aws-glue-alpha~=2.75.0a0"
     ],
     extras_require={
         "dev": [

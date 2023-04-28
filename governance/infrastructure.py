@@ -124,7 +124,7 @@ class Marquez(Stack):
                             # start marquez
                             # start not working as docker compose not recognized?
                             ec2.InitCommand.shell_command(
-                                "sudo -u ec2-user ./docker/up.sh --tag 0.29.0 --detach",
+                                "sudo -u ec2-user ./docker/up.sh --tag 0.33.0 --detach",
                                 cwd="/home/ec2-user/marquez",
                                 ignore_errors=True,
                             ),
@@ -160,6 +160,8 @@ class Marquez(Stack):
             removal_policy=RemovalPolicy.DESTROY,
         )
 
+        self.lineage_api_url = f"http://{lineage_instance.instance_public_dns_name}:5000"
+
         # create Outputs
         CfnOutput(
             self,
@@ -170,7 +172,6 @@ class Marquez(Stack):
         CfnOutput(
             self,
             "OpenlineageApi",
-            value=f"http://{lineage_instance.instance_public_dns_name}:5000",
+            value=self.lineage_api_url,
             export_name="openlineage-api",
         )
-

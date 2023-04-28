@@ -77,12 +77,15 @@ redshift = Redshift(
     "redshift",
     VPC=s3.VPC,
     S3_BUCKET_RAW=s3.S3_BUCKET_RAW,
+    S3_BUCKET_CURATED=s3.S3_BUCKET_CURATED,
     REDSHIFT_DB_NAME=constants.DEV_REDSHIFT_DB_NAME,
     REDSHIFT_NAMESPACE=constants.DEV_REDSHIFT_NAMESPACE,
     REDSHIFT_WORKGROUP=constants.DEV_REDSHIFT_WORKGROUP,
     REDSHIFT_MASTER_USERNAME=constants.DEV_REDSHIFT_MASTER_USERNAME,
     REDSHIFT_SG=s3.REDSHIFT_SG,
     env=constants.DEV_ENV,
+    GLUE_SG=s3.GLUE_SG,
+    LINEAGE_API_URL=marquez.lineage_api_url
 )
 
 NagSuppressions.add_stack_suppressions(
