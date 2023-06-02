@@ -77,7 +77,7 @@ constructs==10.1.211
     #   AwsCdkDatalake (setup.py)
     #   aws-cdk-lib
     #   cdk-nag
-cryptography==39.0.0
+cryptography==41.0.0
     # via great-expectations
 debugpy==1.6.5
     # via ipykernel
