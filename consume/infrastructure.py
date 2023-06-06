@@ -36,9 +36,9 @@ class Redshift(Stack):
     ):
         super().__init__(scope, id, **kwargs)
 
-        redshift_password = sm.Secret(
+        redshift_secret = sm.Secret(
             self,
-            "redshift_password",
+            "redshift_secret",
             description="Redshift password",
             secret_name="REDSHIFT_PASSWORD",
             generate_secret_string=sm.SecretStringGenerator(exclude_punctuation=True),
@@ -64,7 +64,7 @@ class Redshift(Stack):
             default_iam_role_arn=redshift_cluster_role.role_arn,
             iam_roles=[redshift_cluster_role.role_arn],
             admin_username=REDSHIFT_MASTER_USERNAME,
-            admin_user_password=redshift_password.secret_value.unsafe_unwrap(),
+            admin_user_password=redshift_secret.secret_value.unsafe_unwrap(),
         )
 
         rs_workgroup = rs.CfnWorkgroup(
@@ -85,13 +85,17 @@ class Redshift(Stack):
             description="Connector for Redshift",
             secret_name="airflow/connections/REDSHIFT_CONNECTOR",
             secret_string_value=SecretValue.unsafe_plain_text(
-                f"postgres://{REDSHIFT_MASTER_USERNAME}:{redshift_password.secret_value.to_string()}"
+                f"postgres://{REDSHIFT_MASTER_USERNAME}:{redshift_secret.secret_value.to_string()}"
                 f"@{REDSHIFT_WORKGROUP}.{Aws.ACCOUNT_ID}.{Aws.REGION}.redshift-serverless.amazonaws.com:5439"
                 f"/{rs_namespace.db_name}"
                 ),
             removal_policy=RemovalPolicy.DESTROY,
         )
-
+        
+        # to share ...
+        self.REDSHIFT_SECRET = redshift_secret
+        self.REDSHIFT_IAM_ROLE = redshift_cluster_role
+        
         output_1 = CfnOutput(
             self,
             "RedshiftServerlessEndpoint",
@@ -112,7 +116,7 @@ class Redshift(Stack):
                 f"https://console.aws.amazon.com/secretsmanager/home?region="
                 f"{Aws.REGION}"
                 f"#/secret?name="
-                f"{redshift_password.secret_arn}"
+                f"{redshift_secret.secret_arn}"
             ),
             description=f"Redshift Cluster Password in Secrets Manager",
         )

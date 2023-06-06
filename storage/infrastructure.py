@@ -41,7 +41,8 @@ class S3(Stack):
             scope: Construct, 
             id: str, 
             EXTERNAL_IP: str,
-            DEV_GLUE_DB: str,
+            DEV_GLUE_RAW_DB: str,
+            DEV_GLUE_CURATED_DB: str,
             **kwargs
         ) -> None:
 
@@ -60,6 +61,11 @@ class S3(Stack):
         vpc.add_gateway_endpoint(
             "e6ad3311-f566-426e-8291-6937101db6a1",
             service=ec2.GatewayVpcEndpointAwsService.S3,
+        )
+
+        vpc.add_interface_endpoint(
+            "CWLogsVPCEndpoint",
+            service=ec2.InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS
         )
 
         redshift_sg = ec2.SecurityGroup(
@@ -84,6 +90,14 @@ class S3(Stack):
             vpc=vpc, 
             description="MWAA sg"
         )
+
+        glue_sg = ec2.SecurityGroup(
+            self,
+            "glue_sg",
+            vpc=vpc,
+            description="glue ETL jobs sg"
+        )
+
         # add access within group
         airflow_sg.connections.allow_internally(ec2.Port.all_traffic(), "within MWAA")
 
@@ -96,9 +110,11 @@ class S3(Stack):
             )
 
         lineage_sg.connections.allow_from(airflow_sg, ec2.Port.tcp(5000))
+        lineage_sg.connections.allow_from(glue_sg, ec2.Port.tcp(5000))
         redshift_sg.connections.allow_from(airflow_sg, ec2.Port.tcp(5439))
         redshift_sg.connections.allow_from(lineage_sg, ec2.Port.tcp(5439))
-
+        redshift_sg.connections.allow_from(glue_sg, ec2.Port.tcp(5439))
+        glue_sg.connections.allow_from(glue_sg, ec2.Port.all_traffic())
 
         # create s3 bucket for logs
         s3_bucket_logs = s3.Bucket(
@@ -138,6 +154,19 @@ class S3(Stack):
             ],
         )
 
+        s3_bucket_curated = s3.Bucket(
+            self,
+            "curated",
+            encryption=s3.BucketEncryption.S3_MANAGED,
+            public_read_access=False,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            removal_policy=RemovalPolicy.DESTROY,
+            auto_delete_objects=True,
+            server_access_logs_bucket=s3_bucket_logs,
+            enforce_ssl=True,
+        )
+        Tags.of(s3_bucket_curated).add("purpose", "CURATED")
+
         # cloudtrail for object logs
         trail = cloudtrail.Trail(self, "dl_trail", bucket=s3_bucket_logs)
         trail.add_s3_event_selector(
@@ -147,15 +176,26 @@ class S3(Stack):
         )
 
         # glue database for the tables
-        database = glue.CfnDatabase(
+        database_raw = glue.CfnDatabase(
             self,
-            "database",
+            "database_raw",
             catalog_id=Aws.ACCOUNT_ID,
             database_input=glue.CfnDatabase.DatabaseInputProperty(
-                name=DEV_GLUE_DB
+                name=DEV_GLUE_RAW_DB
             ),
         )
-        database.apply_removal_policy(policy=RemovalPolicy.DESTROY)
+        database_raw.apply_removal_policy(policy=RemovalPolicy.DESTROY)
+        
+        # glue database for the tables
+        database_curated = glue.CfnDatabase(
+            self,
+            "database_curated",
+            catalog_id=Aws.ACCOUNT_ID,
+            database_input=glue.CfnDatabase.DatabaseInputProperty(
+                name=DEV_GLUE_CURATED_DB
+            ),
+        )
+        database_curated.apply_removal_policy(policy=RemovalPolicy.DESTROY)
 
         # glue crawler role
         crawler_role = iam.Role(
@@ -180,7 +220,7 @@ class S3(Stack):
                     glue.CfnCrawler.S3TargetProperty(path=s3_bucket_raw.bucket_name)
                 ],
             ),
-            database_name=DEV_GLUE_DB,
+            database_name=DEV_GLUE_RAW_DB,
             role=crawler_role.role_name,
 
         )
@@ -203,19 +243,26 @@ class S3(Stack):
         # to share ...
         self.VPC = vpc
         self.S3_BUCKET_RAW = s3_bucket_raw
+        self.S3_BUCKET_CURATED = s3_bucket_curated
 
         # share security groups
         self.REDSHIFT_SG = redshift_sg
+        self.GLUE_SG = glue_sg
         self.OPENLINEAGE_SG = lineage_sg
         self.AIRFLOW_SG = airflow_sg
-
-
 
         CfnOutput(
             self,
             "RedshiftSg",
             value=redshift_sg.security_group_id,
             export_name="redshift-sg",
+        )
+
+        CfnOutput(
+            self,
+            "GlueSg",
+            value=glue_sg.security_group_id,
+            export_name="glue-sg",
         )
 
         CfnOutput(

@@ -13,10 +13,11 @@ DEV_ENV = Environment(
     account=os.environ["CDK_DEFAULT_ACCOUNT"], region=os.environ["CDK_DEFAULT_REGION"]
 )
 
-CDK_APP_NAME = "cdkdl"
+CDK_APP_NAME = "dl"
 CDK_APP_PYTHON_VERSION = "3.7"
 
-DEV_GLUE_DB=f"{CDK_APP_NAME}-redshift"
+DEV_GLUE_RAW_DB=f"{CDK_APP_NAME}_raw_db"
+DEV_GLUE_CURATED_DB=f"{CDK_APP_NAME}_curated_db"
 DEV_LINEAGE_INSTANCE = ec2.InstanceType("t2.xlarge")
 
 DEV_MWAA_ENV_CLASS = "mw1.small"

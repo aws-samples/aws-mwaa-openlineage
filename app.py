@@ -11,6 +11,8 @@ from storage.infrastructure import S3
 from governance.infrastructure import Marquez
 from orchestration.infrastructure import MWAA
 from consume.infrastructure import Redshift
+from transform.infrastructure import Glue
+
 
 app = App()
 #This enables security validation through cdk_nag
@@ -21,7 +23,8 @@ app = App()
 s3 = S3(app,
         "vpc-s3",
         EXTERNAL_IP=constants.EXTERNAL_IP,
-        DEV_GLUE_DB=constants.DEV_GLUE_DB,
+        DEV_GLUE_RAW_DB=constants.DEV_GLUE_RAW_DB,
+        DEV_GLUE_CURATED_DB=constants.DEV_GLUE_CURATED_DB,
         env=constants.DEV_ENV,)
 NagSuppressions.add_stack_suppressions(
     stack=s3,
@@ -82,6 +85,21 @@ redshift = Redshift(
     REDSHIFT_WORKGROUP=constants.DEV_REDSHIFT_WORKGROUP,
     REDSHIFT_MASTER_USERNAME=constants.DEV_REDSHIFT_MASTER_USERNAME,
     REDSHIFT_SG=s3.REDSHIFT_SG,
+    env=constants.DEV_ENV,
+)
+
+glue = Glue(
+    app,
+    "glue",
+    S3_BUCKET_CURATED=s3.S3_BUCKET_RAW,
+    REDSHIFT_DB_NAME=constants.DEV_REDSHIFT_DB_NAME,
+    REDSHIFT_WORKGROUP=constants.DEV_REDSHIFT_WORKGROUP,
+    REDSHIFT_MASTER_USERNAME=constants.DEV_REDSHIFT_MASTER_USERNAME,
+    VPC=s3.VPC,
+    GLUE_SG=s3.GLUE_SG,
+    OPENLINEAGE_API=marquez.OPENLINEAGE_API,
+    REDSHIFT_IAM_ROLE=redshift.REDSHIFT_IAM_ROLE,
+    REDSHIFT_SECRET=redshift.REDSHIFT_SECRET,
     env=constants.DEV_ENV,
 )
 

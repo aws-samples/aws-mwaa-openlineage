@@ -45,7 +45,7 @@ class MWAA(Stack):
         # create s3 bucket for mwaa
         s3_bucket_mwaa = s3.Bucket(
             self,
-            "s3_bucket_mwaa",
+            "mwaa",
             encryption=s3.BucketEncryption.S3_MANAGED,
             public_read_access=False,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
