@@ -117,7 +117,7 @@ googleapis-common-protos==1.57.1
     #   grpcio-status
 great-expectations==0.15.42
     # via AwsCdkDatalake (setup.py)
-grpcio==1.51.1
+grpcio==1.53.0
     # via
     #   google-api-core
     #   google-cloud-bigquery
