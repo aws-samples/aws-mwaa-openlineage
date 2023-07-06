@@ -24,6 +24,8 @@ class Glue(Stack):
         scope: Construct,
         id: str,
         S3_BUCKET_CURATED: s3.Bucket,
+        GLUE_RAW_DB: str,
+        GLUE_CURATED_DB: str,
         REDSHIFT_DB_NAME: str,
         REDSHIFT_WORKGROUP: str,
         REDSHIFT_MASTER_USERNAME: str,
@@ -81,24 +83,14 @@ class Glue(Stack):
                 glue_version=glue.GlueVersion.V4_0,
                 python_version=glue.PythonVersion.THREE,
                 script=glue.Code.from_asset("transform/runtime/scripts/raw_to_transformed.py"),
-                extra_jars=[glue.Code.from_asset("transform/runtime/jars/openlineage-spark-0.22.0.jar")],
-                extra_jars_first=True
             ),
             connections=[glue_vpc_connection],
             default_arguments={
-                "--conf": "spark.extraListeners=io.openlineage.spark.agent.OpenLineageSparkListener"
-                + f" --conf spark.openlineage.transport.url={OPENLINEAGE_API}"
-                + " --conf spark.openlineage.transport.type=http",
                 "--TempDir": f"s3://{glue_temp_bucket.bucket_name}/",
-                "--redshift_conn_string":
-                    f"jdbc:redshift://{REDSHIFT_WORKGROUP}.{Aws.ACCOUNT_ID}.{Aws.REGION}"
-                    + f".redshift-serverless.amazonaws.com:5439/{REDSHIFT_DB_NAME}",
-                "--redshift_user": REDSHIFT_MASTER_USERNAME,
-                "--redshift_password_secret_id": REDSHIFT_SECRET.secret_arn,
-                "--output_bucket": S3_BUCKET_CURATED.bucket_name,
-                "--redshift_cluster_role": REDSHIFT_IAM_ROLE.role_arn,
-                "--lineage_api_url": OPENLINEAGE_API,
-                "--additional-python-modules": "openlineage-python"
+                "--table_name": "default",
+                "--s3_target_bucket": S3_BUCKET_CURATED.bucket_name,
+                "--raw_db": GLUE_RAW_DB,
+                "--curated_db": GLUE_CURATED_DB,
             },
             role=glue_job_role,
             worker_count=4,
