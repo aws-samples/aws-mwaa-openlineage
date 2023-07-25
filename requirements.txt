@@ -58,7 +58,7 @@ cattrs==22.2.0
     # via jsii
 cdk-nag==2.21.68
     # via AwsCdkDatalake (setup.py)
-certifi==2022.12.7
+certifi==2023.7.22
     # via requests
 cffi==1.15.1
     # via
