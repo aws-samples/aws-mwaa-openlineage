@@ -7,7 +7,7 @@ from aws_cdk import aws_ec2 as ec2
 
 
 # Update client external ip to access OpenLineage UI
-EXTERNAL_IP = "255.255.255.255"
+EXTERNAL_IP = "1.145.73.201"
 
 DEV_ENV = Environment(
     account=os.environ["CDK_DEFAULT_ACCOUNT"], region=os.environ["CDK_DEFAULT_REGION"]
@@ -17,13 +17,13 @@ CDK_APP_NAME = "cdkdl"
 CDK_APP_PYTHON_VERSION = "3.7"
 
 DEV_GLUE_DB=f"{CDK_APP_NAME}-redshift"
-DEV_LINEAGE_INSTANCE = ec2.InstanceType("t2.xlarge")
+DEV_LINEAGE_INSTANCE = ec2.InstanceType("t3.xlarge")
 
 DEV_MWAA_ENV_CLASS = "mw1.small"
 DEV_MWAA_ENV_NAME=f"{CDK_APP_NAME}-dev"
 DEV_OPENLINEAGE_NAMESPACE=f"{CDK_APP_NAME}-dev"
 DEV_MWAA_REPO_DAG_NAME=f"{CDK_APP_NAME}-dev-mwaa-repo-dag"
-DEV_MWAA_ENV_VERSION = "2.4.3"
+DEV_MWAA_ENV_VERSION = "2.6.3"
 
 DEV_PERMISSIONS = "IAM"
 DEV_REDSHIFT_CLUSTER_TYPE = "multi-node"

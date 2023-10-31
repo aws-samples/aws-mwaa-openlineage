@@ -58,9 +58,7 @@ class Marquez(Stack):
             self,
             "lineage_instance",
             instance_type=LINEAGE_INSTANCE,
-            machine_image=ec2.AmazonLinuxImage(
-                generation=ec2.AmazonLinuxGeneration.AMAZON_LINUX_2
-            ),
+            machine_image=ec2.MachineImage.latest_amazon_linux2023(),
             vpc=VPC,
             vpc_subnets={"subnet_type": ec2.SubnetType.PUBLIC},
             role=lineage_instance_role,
@@ -73,34 +71,18 @@ class Marquez(Stack):
                     "prereqs": ec2.InitConfig(
                         [
                             # update yum
-                            ec2.InitCommand.shell_command("yum update -y"),
-                            ec2.InitCommand.shell_command("yum upgrade -y"),
-                            ec2.InitCommand.shell_command("yum install -y awslogs"),
-                            ec2.InitCommand.shell_command("systemctl start awslogsd"),
-                            ec2.InitCommand.shell_command(
-                                "amazon-linux-extras install epel"
-                            ),
-                            # push logs to cloudwatch with agent
-                            ec2.InitPackage.yum("amazon-cloudwatch-agent"),
-                            # ec2.InitService.enable("amazon-cloudwatch-agent"),
-                            # missing setup here to export aws logs?
-                            ec2.InitCommand.shell_command(
-                                "/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s"
-                            ),
-                            # need git to clone marquez
                             ec2.InitPackage.yum("git"),
                             # pre-requisites for marquez
                             ec2.InitPackage.yum("docker"),
                             ec2.InitService.enable("docker"),
-                            # install pip to get docker-compose
                             ec2.InitCommand.shell_command(
-                                "yum -y install python-pip",
+                                "mkdir -p /usr/local/lib/docker/cli-plugins/",
                             ),
                             ec2.InitCommand.shell_command(
-                                "python3 -m pip install docker-compose",
+                                "curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose"
                             ),
                             ec2.InitCommand.shell_command(
-                                "ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose"
+                                "chmod +x /usr/local/lib/docker/cli-plugins/docker-compose"
                             ),
                             # add ec2-user to docker group
                             ec2.InitCommand.shell_command(
@@ -114,7 +96,7 @@ class Marquez(Stack):
                         [
                             # check docker-compose version
                             ec2.InitCommand.shell_command(
-                                "sudo -u ec2-user docker-compose --version",
+                                "sudo -u ec2-user docker compose version",
                                 ignore_errors=True,
                             ),
                             # clone marquez
@@ -124,7 +106,7 @@ class Marquez(Stack):
                             # start marquez
                             # start not working as docker compose not recognized?
                             ec2.InitCommand.shell_command(
-                                "sudo -u ec2-user ./docker/up.sh --tag 0.29.0 --detach",
+                                "sudo -u ec2-user ./docker/up.sh --tag 0.42.0 --detach",
                                 cwd="/home/ec2-user/marquez",
                                 ignore_errors=True,
                             ),

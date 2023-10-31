@@ -1,2 +1,2 @@
-openlineage-airflow==0.19.2
+openlineage-airflow==1.4.1
 openapi-python-client
