@@ -7,7 +7,7 @@ from aws_cdk import aws_ec2 as ec2
 
 
 # Update client external ip to access OpenLineage UI
-EXTERNAL_IP = "1.145.73.201"
+EXTERNAL_IP = "255.255.255.255"
 
 DEV_ENV = Environment(
     account=os.environ["CDK_DEFAULT_ACCOUNT"], region=os.environ["CDK_DEFAULT_REGION"]
