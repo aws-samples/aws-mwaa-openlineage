@@ -1,6 +1,6 @@
 from airflow import DAG
 from airflow.utils.dates import days_ago
-from airflow.providers.postgres.operators.postgres import PostgresOperator
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_ago(2), tags=['example']) as dag:
 
@@ -10,8 +10,8 @@ with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_
     database 'cdkdl-redshift'
     iam_role default;
     '''
-    create_ext_schema = PostgresOperator(
-        postgres_conn_id='REDSHIFT_CONNECTOR',
+    create_ext_schema = SQLExecuteQueryOperator(
+        conn_id='REDSHIFT_CONNECTOR',
         task_id='create_ext_schema',
         sql=create_ext_schema_query
     )
@@ -26,8 +26,8 @@ with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_
 	starttime timestamp);
     DELETE FROM event;
     '''
-    create_table_event = PostgresOperator(
-        postgres_conn_id='REDSHIFT_CONNECTOR',
+    create_table_event = SQLExecuteQueryOperator(
+        conn_id='REDSHIFT_CONNECTOR',
         task_id='setup__create_event_table',
         sql=create_event_query
     )
@@ -37,8 +37,8 @@ with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_
     SELECT eventid, venueid, catid, dateid, eventname, starttime::TIMESTAMP
     FROM s3_datalake.event;
     '''
-    task_insert_event_data = PostgresOperator(
-        postgres_conn_id='REDSHIFT_CONNECTOR',
+    task_insert_event_data = SQLExecuteQueryOperator(
+        conn_id='REDSHIFT_CONNECTOR',
         task_id='task_insert_event_data',
         sql=insert_event_query
     )
@@ -66,8 +66,8 @@ with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_
 	likemusicals boolean);
     DELETE FROM users;
     '''
-    create_table_users = PostgresOperator(
-        postgres_conn_id='REDSHIFT_CONNECTOR',
+    create_table_users = SQLExecuteQueryOperator(
+        conn_id='REDSHIFT_CONNECTOR',
         task_id='setup__create_users_table',
         sql=create_users_query
     )
@@ -78,8 +78,8 @@ with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_
     likejazz, likeclassical, likeopera, likerock, likevegas, likebroadway, likemusicals
     FROM s3_datalake.users;
     '''
-    task_insert_users_data = PostgresOperator(
-        postgres_conn_id='REDSHIFT_CONNECTOR',
+    task_insert_users_data = SQLExecuteQueryOperator(
+        conn_id='REDSHIFT_CONNECTOR',
         task_id='task_insert_users_data',
         sql=insert_users_query
     )
@@ -93,8 +93,8 @@ with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_
 	venueseats integer);
     DELETE FROM venue;
     '''
-    create_table_venue = PostgresOperator(
-        postgres_conn_id='REDSHIFT_CONNECTOR',
+    create_table_venue = SQLExecuteQueryOperator(
+        conn_id='REDSHIFT_CONNECTOR',
         task_id='setup__create_venue_table',
         sql=create_venue_query
     )
@@ -104,8 +104,8 @@ with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_
     SELECT venueid, venuename, venuecity, venuestate, nullif(venueseats, '\\\\N')::INTEGER
     FROM s3_datalake.venue;
     '''
-    task_insert_venue_data = PostgresOperator(
-        postgres_conn_id='REDSHIFT_CONNECTOR',
+    task_insert_venue_data = SQLExecuteQueryOperator(
+        conn_id='REDSHIFT_CONNECTOR',
         task_id='task_insert_venue_data',
         sql=insert_venue_query
     )
@@ -118,8 +118,8 @@ with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_
 	catdesc varchar(50));
     DELETE FROM category;
     '''
-    create_table_category = PostgresOperator(
-        postgres_conn_id='REDSHIFT_CONNECTOR',
+    create_table_category = SQLExecuteQueryOperator(
+        conn_id='REDSHIFT_CONNECTOR',
         task_id='setup__create_category_table',
         sql=create_category_query
     )
@@ -129,8 +129,8 @@ with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_
     SELECT catid, catgroup, catname, catdesc
     FROM s3_datalake.category;
     '''
-    task_insert_category_data = PostgresOperator(
-        postgres_conn_id='REDSHIFT_CONNECTOR',
+    task_insert_category_data = SQLExecuteQueryOperator(
+        conn_id='REDSHIFT_CONNECTOR',
         task_id='task_insert_category_data',
         sql=insert_category_query
     )
@@ -147,8 +147,8 @@ with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_
 	holiday boolean);
     DELETE FROM date;
     '''
-    create_table_date = PostgresOperator(
-        postgres_conn_id='REDSHIFT_CONNECTOR',
+    create_table_date = SQLExecuteQueryOperator(
+        conn_id='REDSHIFT_CONNECTOR',
         task_id='setup__create_date_table',
         sql=create_date_query
     )
@@ -158,8 +158,8 @@ with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_
     SELECT dateid, caldate::DATE, "day", week, "month", qtr, "year", holiday
     FROM s3_datalake."date";
     '''
-    task_insert_date_data = PostgresOperator(
-        postgres_conn_id='REDSHIFT_CONNECTOR',
+    task_insert_date_data = SQLExecuteQueryOperator(
+        conn_id='REDSHIFT_CONNECTOR',
         task_id='task_insert_date_data',
         sql=insert_date_query
     )
@@ -176,8 +176,8 @@ with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_
 	listtime timestamp);
     DELETE FROM listing;
     '''
-    create_table_listing = PostgresOperator(
-        postgres_conn_id='REDSHIFT_CONNECTOR',
+    create_table_listing = SQLExecuteQueryOperator(
+        conn_id='REDSHIFT_CONNECTOR',
         task_id='setup__create_listing_table',
         sql=create_listing_query
     )
@@ -187,8 +187,8 @@ with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_
     SELECT listid, sellerid, eventid, dateid, numtickets, priceperticket, totalprice, listtime::TIMESTAMP
     FROM s3_datalake.listing;
     '''
-    task_insert_listing_data = PostgresOperator(
-        postgres_conn_id='REDSHIFT_CONNECTOR',
+    task_insert_listing_data = SQLExecuteQueryOperator(
+        conn_id='REDSHIFT_CONNECTOR',
         task_id='task_insert_listing_data',
         sql=insert_listing_query
     )
@@ -207,8 +207,8 @@ with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_
 	saletime timestamp);
     DELETE FROM sales;
     '''
-    create_table_sales = PostgresOperator(
-        postgres_conn_id='REDSHIFT_CONNECTOR',
+    create_table_sales = SQLExecuteQueryOperator(
+        conn_id='REDSHIFT_CONNECTOR',
         task_id='setup__create_sales_table',
         sql=create_sales_query
     )
@@ -218,8 +218,8 @@ with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_
     SELECT salesid, listid, sellerid, buyerid, eventid, dateid, qtysold, pricepaid, commission, saletime::TIMESTAMP
     FROM s3_datalake.sales;
     '''
-    task_insert_sales_data = PostgresOperator(
-        postgres_conn_id='REDSHIFT_CONNECTOR',
+    task_insert_sales_data = SQLExecuteQueryOperator(
+        conn_id='REDSHIFT_CONNECTOR',
         task_id='task_insert_sales_data',
         sql=insert_sales_query
     )

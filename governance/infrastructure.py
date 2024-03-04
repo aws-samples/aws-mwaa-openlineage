@@ -106,7 +106,7 @@ class Marquez(Stack):
                             # start marquez
                             # start not working as docker compose not recognized?
                             ec2.InitCommand.shell_command(
-                                "sudo -u ec2-user ./docker/up.sh --tag 0.42.0 --detach",
+                                "sudo -u ec2-user ./docker/up.sh --tag 0.44.0 --detach",
                                 cwd="/home/ec2-user/marquez",
                                 ignore_errors=True,
                             ),
