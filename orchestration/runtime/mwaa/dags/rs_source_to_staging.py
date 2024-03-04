@@ -16,16 +16,16 @@ with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_
         sql=create_ext_schema_query
     )
 
-    create_event_query = '''
-    CREATE TABLE IF NOT EXISTS event(
-	eventid integer not null,
-	venueid smallint not null,
-	catid smallint not null,
-	dateid smallint not null,
-	eventname varchar(200),
-	starttime timestamp);
-    DELETE FROM event;
-    '''
+    create_event_query = [
+        '''CREATE TABLE IF NOT EXISTS event(
+        eventid integer not null,
+        venueid smallint not null,
+        catid smallint not null,
+        dateid smallint not null,
+        eventname varchar(200),
+        starttime timestamp);''',
+        '''DELETE FROM event;'''
+        ]
     create_table_event = SQLExecuteQueryOperator(
         conn_id='REDSHIFT_CONNECTOR',
         task_id='setup__create_event_table',
@@ -44,7 +44,7 @@ with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_
     )
 
 
-    create_users_query = '''
+    create_users_query = ['''
     CREATE TABLE IF NOT EXISTS users(
 	userid integer not null,
 	username char(8),
@@ -63,9 +63,9 @@ with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_
 	likerock boolean,
 	likevegas boolean,
 	likebroadway boolean,
-	likemusicals boolean);
-    DELETE FROM users;
-    '''
+	likemusicals boolean);''',
+    '''DELETE FROM users;
+    ''']    
     create_table_users = SQLExecuteQueryOperator(
         conn_id='REDSHIFT_CONNECTOR',
         task_id='setup__create_users_table',
@@ -84,15 +84,15 @@ with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_
         sql=insert_users_query
     )
 
-    create_venue_query = '''
+    create_venue_query = ['''
     CREATE TABLE IF NOT EXISTS venue(
 	venueid smallint not null,
 	venuename varchar(100),
 	venuecity varchar(30),
 	venuestate char(2),
-	venueseats integer);
-    DELETE FROM venue;
-    '''
+	venueseats integer);''',
+    '''DELETE FROM venue;
+    ''']
     create_table_venue = SQLExecuteQueryOperator(
         conn_id='REDSHIFT_CONNECTOR',
         task_id='setup__create_venue_table',
@@ -110,14 +110,14 @@ with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_
         sql=insert_venue_query
     )
 
-    create_category_query = '''
+    create_category_query = ['''
     CREATE TABLE IF NOT EXISTS category(
 	catid smallint not null distkey sortkey,
 	catgroup varchar(10),
 	catname varchar(10),
-	catdesc varchar(50));
-    DELETE FROM category;
-    '''
+	catdesc varchar(50));''',
+    '''DELETE FROM category;
+    ''']
     create_table_category = SQLExecuteQueryOperator(
         conn_id='REDSHIFT_CONNECTOR',
         task_id='setup__create_category_table',
@@ -135,7 +135,7 @@ with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_
         sql=insert_category_query
     )
 
-    create_date_query = '''
+    create_date_query = ['''
     CREATE TABLE IF NOT EXISTS date(
 	dateid smallint not null,
 	caldate date not null,
@@ -144,9 +144,9 @@ with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_
 	month character(5) not null,
 	qtr character(5) not null,
 	year smallint not null,
-	holiday boolean);
-    DELETE FROM date;
-    '''
+	holiday boolean);''',
+    '''DELETE FROM date;
+    ''']
     create_table_date = SQLExecuteQueryOperator(
         conn_id='REDSHIFT_CONNECTOR',
         task_id='setup__create_date_table',
@@ -164,7 +164,7 @@ with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_
         sql=insert_date_query
     )
 
-    create_listing_query = '''
+    create_listing_query = ['''
     CREATE TABLE IF NOT EXISTS listing(
 	listid integer not null,
 	sellerid integer not null,
@@ -173,9 +173,9 @@ with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_
 	numtickets smallint not null,
 	priceperticket decimal(8,2),
 	totalprice decimal(8,2),
-	listtime timestamp);
-    DELETE FROM listing;
-    '''
+	listtime timestamp);''',
+    '''DELETE FROM listing;
+    ''']
     create_table_listing = SQLExecuteQueryOperator(
         conn_id='REDSHIFT_CONNECTOR',
         task_id='setup__create_listing_table',
@@ -193,7 +193,7 @@ with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_
         sql=insert_listing_query
     )
 
-    create_sales_query = '''
+    create_sales_query = ['''
     CREATE TABLE IF NOT EXISTS sales(
 	salesid integer not null,
 	listid integer not null,
@@ -204,9 +204,9 @@ with DAG(dag_id="rs_source_to_staging", schedule_interval=None, start_date=days_
 	qtysold smallint not null,
 	pricepaid decimal(8,2),
 	commission decimal(8,2),
-	saletime timestamp);
-    DELETE FROM sales;
-    '''
+	saletime timestamp);''',
+    '''DELETE FROM sales;
+    ''']
     create_table_sales = SQLExecuteQueryOperator(
         conn_id='REDSHIFT_CONNECTOR',
         task_id='setup__create_sales_table',

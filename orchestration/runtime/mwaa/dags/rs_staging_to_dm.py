@@ -5,7 +5,7 @@ from airflow.models import Variable
 
 with DAG(dag_id="rs_staging_to_dm", schedule_interval=None, start_date=days_ago(2), tags=['example']) as dag:
 
-    create_fact_sales_query = '''
+    create_fact_sales_query = ['''
     CREATE TABLE IF NOT EXISTS public.fact_sales
     (
         salesid INTEGER   
@@ -21,9 +21,9 @@ with DAG(dag_id="rs_staging_to_dm", schedule_interval=None, start_date=days_ago(
         ,pricepaid NUMERIC(8,2)   
         ,commission NUMERIC(8,2)   
         ,saletime TIMESTAMP WITHOUT TIME ZONE   
-    );
-    DELETE FROM public.fact_sales;
-    '''
+    );''',
+    '''DELETE FROM public.fact_sales;
+    ''']
     create_table_fact_sales = SQLExecuteQueryOperator(
         conn_id='REDSHIFT_CONNECTOR',
         task_id='setup__create_fact_sales_table',
@@ -42,7 +42,7 @@ with DAG(dag_id="rs_staging_to_dm", schedule_interval=None, start_date=days_ago(
         sql=insert_fact_sales_query
     )
 
-    create_dim_event_query = '''
+    create_dim_event_query = ['''
     CREATE TABLE IF NOT EXISTS public.dim_event
     (
         eventid INTEGER   
@@ -61,9 +61,9 @@ with DAG(dag_id="rs_staging_to_dm", schedule_interval=None, start_date=days_ago(
         ,"year" SMALLINT   
         ,eventname VARCHAR(200)   
         ,starttime TIMESTAMP WITHOUT TIME ZONE   
-    );
-    DELETE FROM public.dim_event;
-    '''
+    );''',
+    '''DELETE FROM public.dim_event;
+    ''']
     create_table_dim_event = SQLExecuteQueryOperator(
         conn_id='REDSHIFT_CONNECTOR',
         task_id='setup__create_dim_event_table',
@@ -85,7 +85,7 @@ with DAG(dag_id="rs_staging_to_dm", schedule_interval=None, start_date=days_ago(
         sql=insert_dim_event_query
     )
 
-    create_dim_users_query = '''
+    create_dim_users_query = ['''
     CREATE TABLE IF NOT EXISTS public.dim_users
     (
         userid INTEGER   
@@ -107,9 +107,9 @@ with DAG(dag_id="rs_staging_to_dm", schedule_interval=None, start_date=days_ago(
         ,likebroadway BOOLEAN   
         ,likemusicals BOOLEAN   
     )
-    ;
-    DELETE FROM public.dim_users;
-    '''
+    ;''',
+    '''DELETE FROM public.dim_users;
+    ''']
     create_table_dim_users = SQLExecuteQueryOperator(
         conn_id='REDSHIFT_CONNECTOR',
         task_id='setup__create_dim_users_table',

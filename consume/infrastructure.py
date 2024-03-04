@@ -85,7 +85,7 @@ class Redshift(Stack):
             description="Connector for Redshift",
             secret_name="airflow/connections/REDSHIFT_CONNECTOR",
             secret_string_value=SecretValue.unsafe_plain_text(
-                f"postgres://{REDSHIFT_MASTER_USERNAME}:{redshift_password.secret_value.to_string()}"
+                f"redshift://{REDSHIFT_MASTER_USERNAME}:{redshift_password.secret_value.to_string()}"
                 f"@{REDSHIFT_WORKGROUP}.{Aws.ACCOUNT_ID}.{Aws.REGION}.redshift-serverless.amazonaws.com:5439"
                 f"/{rs_namespace.db_name}"
                 ),

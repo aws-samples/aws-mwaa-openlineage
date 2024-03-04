@@ -1,0 +1,2 @@
+apache-airflow-providers-openlineage==1.4.0
+openapi-python-client

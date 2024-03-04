@@ -10,7 +10,7 @@ from aws_cdk import aws_ec2 as ec2
 EXTERNAL_IP = "1.145.123.2"
 
 DEV_ENV = Environment(
-    account='091069288264', region='ap-southeast-1'
+    account='091069288264', region='us-west-2'
 )
 
 CDK_APP_NAME = "cdkdl"

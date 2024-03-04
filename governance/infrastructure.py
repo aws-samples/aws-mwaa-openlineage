@@ -128,7 +128,7 @@ class Marquez(Stack):
             self,
             "openlineage_namespace",
             description="Openlineage Namespace",
-            secret_name="airflow/variables/OPENLINEAGE_NAMESPACE",
+            secret_name="airflow/variables/AIRFLOW__OPENLINEAGE__NAMESPACE",
             secret_string_value=SecretValue.unsafe_plain_text(OPENLINEAGE_NAMESPACE),
             removal_policy=RemovalPolicy.DESTROY,
         )
@@ -137,8 +137,8 @@ class Marquez(Stack):
             self,
             "openlineage_url",
             description="Openlineage URL",
-            secret_name="airflow/variables/OPENLINEAGE_URL",
-            secret_string_value=SecretValue.unsafe_plain_text(f"http://{lineage_instance.instance_public_dns_name}:5000"),
+            secret_name="airflow/variables/AIRFLOW__OPENLINEAGE__TRANSPORT",
+            secret_string_value=SecretValue.unsafe_plain_text('{"type": "http", "url": "http://' + str(lineage_instance.instance_public_dns_name) + ':5000"}'),
             removal_policy=RemovalPolicy.DESTROY,
         )
 
