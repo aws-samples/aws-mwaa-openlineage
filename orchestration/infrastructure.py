@@ -204,7 +204,7 @@ class MWAA(Stack):
             max_workers=10,
             webserver_access_mode="PUBLIC_ONLY",
             logging_configuration=mwaa.CfnEnvironment.LoggingConfigurationProperty(
-                task_logs={"enabled": True, "logLevel": "INFO"},
+                task_logs={"enabled": True, "logLevel": "DEBUG"},
                 worker_logs={"enabled": True, "logLevel": "INFO"},
                 scheduler_logs={"enabled": True, "logLevel": "INFO"},
                 dag_processing_logs={"enabled": True, "logLevel": "INFO"},

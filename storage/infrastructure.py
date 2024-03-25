@@ -84,6 +84,15 @@ class S3(Stack):
             vpc=vpc, 
             description="MWAA sg"
         )
+        
+        # emrs sg
+        emr_sg = ec2.SecurityGroup(
+            self, 
+            "emr_sg", 
+            vpc=vpc, 
+            description="EMR Serverless sg"
+        )
+        
         # add access within group
         airflow_sg.connections.allow_internally(ec2.Port.all_traffic(), "within MWAA")
 
@@ -96,6 +105,7 @@ class S3(Stack):
             )
 
         lineage_sg.connections.allow_from(airflow_sg, ec2.Port.tcp(5000))
+        lineage_sg.connections.allow_from(emr_sg, ec2.Port.tcp(5000))
         redshift_sg.connections.allow_from(airflow_sg, ec2.Port.tcp(5439))
         redshift_sg.connections.allow_from(lineage_sg, ec2.Port.tcp(5439))
 
@@ -208,6 +218,7 @@ class S3(Stack):
         self.REDSHIFT_SG = redshift_sg
         self.OPENLINEAGE_SG = lineage_sg
         self.AIRFLOW_SG = airflow_sg
+        self.EMR_SG = emr_sg
 
 
 

@@ -121,7 +121,7 @@ class Redshift(Stack):
             self,
             "RedshiftConnectionString",
             value=(
-                f"postgres://{REDSHIFT_MASTER_USERNAME}:<Password>"
+                f"redshift://{REDSHIFT_MASTER_USERNAME}:<Password>"
                 f"@{REDSHIFT_WORKGROUP}.{Aws.ACCOUNT_ID}.{Aws.REGION}.redshift-serverless.amazonaws.com:5439"
                 f"/{rs_namespace.db_name}"
             ),

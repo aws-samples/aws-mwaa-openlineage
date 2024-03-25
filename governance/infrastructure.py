@@ -106,12 +106,63 @@ class Marquez(Stack):
                             # start marquez
                             # start not working as docker compose not recognized?
                             ec2.InitCommand.shell_command(
-                                "sudo -u ec2-user ./docker/up.sh --tag 0.44.0 --detach",
+                                "sudo -u ec2-user ./docker/up.sh --tag 0.45.0 --detach",
                                 cwd="/home/ec2-user/marquez",
                                 ignore_errors=True,
                             ),
                         ]
                     ),
+                },
+            ),
+            init_options={
+                "config_sets": ["default"],
+                "timeout": Duration.minutes(30),
+            },
+        )
+        
+        # instance for lineage
+        datahub_instance = ec2.Instance(
+            self,
+            "datahub_instance",
+            instance_type=ec2.InstanceType("m5.2xlarge"),
+            machine_image=ec2.MachineImage.latest_amazon_linux2023(),
+            vpc=VPC,
+            vpc_subnets={"subnet_type": ec2.SubnetType.PUBLIC},
+            role=lineage_instance_role,
+            security_group=OPENLINEAGE_SG,
+            block_devices=[ec2.BlockDevice(device_name="/dev/sda1",
+                                                                 volume=ec2.BlockDeviceVolume.ebs(
+                                                                     50
+                                                                 ))],
+            detailed_monitoring=True,
+            init=ec2.CloudFormationInit.from_config_sets(
+                config_sets={"default": ["prereqs"]},
+                # order: packages -> groups -> users-> sources -> files -> commands -> services
+                configs={
+                    "prereqs": ec2.InitConfig(
+                        [
+                            # update yum
+                            ec2.InitPackage.yum("git"),
+                            # pre-requisites for marquez
+                            ec2.InitPackage.yum("docker"),
+                            ec2.InitService.enable("docker"),
+                            ec2.InitCommand.shell_command(
+                                "mkdir -p /usr/local/lib/docker/cli-plugins/",
+                            ),
+                            ec2.InitCommand.shell_command(
+                                "curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose"
+                            ),
+                            ec2.InitCommand.shell_command(
+                                "chmod +x /usr/local/lib/docker/cli-plugins/docker-compose"
+                            ),
+                            # add ec2-user to docker group
+                            ec2.InitCommand.shell_command(
+                                "usermod -aG docker ec2-user",
+                            ),
+                            # kick the groups to add ec2-user to docker
+                            ec2.InitCommand.shell_command("sudo -u ec2-user newgrp"),
+                        ]
+                    )
                 },
             ),
             init_options={
@@ -149,6 +200,7 @@ class Marquez(Stack):
             value=f"http://{lineage_instance.instance_public_dns_name}:3000",
             export_name="lineage-ui",
         )
+        
         CfnOutput(
             self,
             "OpenlineageApi",

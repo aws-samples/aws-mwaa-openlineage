@@ -1,3 +1,5 @@
 apache-airflow-providers-openlineage==1.4.0
 apache-airflow-providers-openlineage[common.sql]==1.4.0
-openapi-python-client
+openlineage-integration-common==1.7.0
+openlineage-python==1.7.0
+openlineage_sql==1.7.0

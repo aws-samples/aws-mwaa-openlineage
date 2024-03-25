@@ -11,6 +11,7 @@ from storage.infrastructure import S3
 from governance.infrastructure import Marquez
 from orchestration.infrastructure import MWAA
 from consume.infrastructure import Redshift
+from transform.infrastructure import EMR
 
 app = App()
 #This enables security validation through cdk_nag
