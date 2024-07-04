@@ -5,6 +5,9 @@ from aws_cdk import (
     aws_iam as iam,
     aws_lakeformation as lf,
     aws_secretsmanager as sm,
+    aws_s3 as s3,
+    aws_datazone as dz,
+    Aws,
     CfnOutput,
     Duration,
     Stack,
@@ -17,7 +20,7 @@ from pathlib import Path
 dirname = Path(__file__).parent
 
 
-class Marquez(Stack):
+class DataZone(Stack):
     """
     Deploy ec2 instance
     Clone marquez
@@ -28,131 +31,255 @@ class Marquez(Stack):
         self,
         scope: Construct,
         id: str,
-        *,
-        VPC: ec2.Vpc,
-        LINEAGE_INSTANCE: ec2.InstanceType,
-        OPENLINEAGE_SG: ec2.SecurityGroup,
-        OPENLINEAGE_NAMESPACE: str,
-        **kwargs
-
-    ):
+        S3_BUCKET_RAW: s3.Bucket,
+        **kwargs):
+        
         super().__init__(scope, id, **kwargs)
-
-        # role for instance
-        lineage_instance_role = iam.Role(
+        
+        
+        datazoneaccessrole = iam.Role(
             self,
-            "lineage_instance_role",
-            assumed_by=iam.ServicePrincipal("ec2.amazonaws.com"),
+            "datazoneaccessrole",
+            assumed_by=iam.ServicePrincipal("datazone.amazonaws.com"),
             managed_policies=[
                 iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "CloudWatchAgentServerPolicy"
-                ),
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AmazonSSMManagedInstanceCore"
-                ),
+                    "service-role/AmazonDataZoneGlueManageAccessRolePolicy"
+                )
             ],
         )
-
-        # instance for lineage
-        lineage_instance = ec2.Instance(
-            self,
-            "lineage_instance",
-            instance_type=LINEAGE_INSTANCE,
-            machine_image=ec2.MachineImage.latest_amazon_linux2023(),
-            vpc=VPC,
-            vpc_subnets={"subnet_type": ec2.SubnetType.PUBLIC},
-            role=lineage_instance_role,
-            security_group=OPENLINEAGE_SG,
-            detailed_monitoring=True,
-            init=ec2.CloudFormationInit.from_config_sets(
-                config_sets={"default": ["prereqs", "marquez"]},
-                # order: packages -> groups -> users-> sources -> files -> commands -> services
-                configs={
-                    "prereqs": ec2.InitConfig(
-                        [
-                            # update yum
-                            ec2.InitPackage.yum("git"),
-                            # pre-requisites for marquez
-                            ec2.InitPackage.yum("docker"),
-                            ec2.InitService.enable("docker"),
-                            ec2.InitCommand.shell_command(
-                                "mkdir -p /usr/local/lib/docker/cli-plugins/",
-                            ),
-                            ec2.InitCommand.shell_command(
-                                "curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose"
-                            ),
-                            ec2.InitCommand.shell_command(
-                                "chmod +x /usr/local/lib/docker/cli-plugins/docker-compose"
-                            ),
-                            # add ec2-user to docker group
-                            ec2.InitCommand.shell_command(
-                                "usermod -aG docker ec2-user",
-                            ),
-                            # kick the groups to add ec2-user to docker
-                            ec2.InitCommand.shell_command("sudo -u ec2-user newgrp"),
-                        ]
-                    ),
-                    "marquez": ec2.InitConfig(
-                        [
-                            # check docker-compose version
-                            ec2.InitCommand.shell_command(
-                                "sudo -u ec2-user docker compose version",
-                                ignore_errors=True,
-                            ),
-                            # clone marquez
-                            ec2.InitCommand.shell_command(
-                                "sudo -u ec2-user git clone https://github.com/MarquezProject/marquez.git /home/ec2-user/marquez"
-                            ),
-                            # start marquez
-                            # start not working as docker compose not recognized?
-                            ec2.InitCommand.shell_command(
-                                "sudo -u ec2-user ./docker/up.sh --tag 0.42.0 --detach",
-                                cwd="/home/ec2-user/marquez",
-                                ignore_errors=True,
-                            ),
-                        ]
-                    ),
-                },
-            ),
-            init_options={
-                "config_sets": ["default"],
-                "timeout": Duration.minutes(30),
-            },
-        )
-
-        # attributes to share
-        self.OPENLINEAGE_URL = lineage_instance.instance_public_dns_name
-        self.OPENLINEAGE_API = f"http://{lineage_instance.instance_public_dns_name}:5000"
         
-        secret_openlineage_namespace = sm.Secret(
+        
+        datazoneprovisioningrole = iam.Role(
             self,
-            "openlineage_namespace",
-            description="Openlineage Namespace",
-            secret_name="airflow/variables/OPENLINEAGE_NAMESPACE",
-            secret_string_value=SecretValue.unsafe_plain_text(OPENLINEAGE_NAMESPACE),
-            removal_policy=RemovalPolicy.DESTROY,
+            "datazoneprovisioningrole",
+            assumed_by=iam.ServicePrincipal("datazone.amazonaws.com"),
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "AmazonDataZoneRedshiftGlueProvisioningPolicy"
+                )
+            ],
         )
+        
+        datazoneexecutionrole = iam.Role(
+            self,
+            "datazoneexecutionrole",
+            assumed_by=iam.ServicePrincipal("datazone.amazonaws.com").with_session_tags(),
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "service-role/AmazonDataZoneDomainExecutionRolePolicy"
+                ),
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "IAMReadOnlyAccess"
+                )
+            ],
+        )
+        
+        
+        dz_domain = dz.CfnDomain(self, "dz_domain",
+            domain_execution_role=datazoneexecutionrole.role_arn,
+            name="blog_dz_domain",
+        )
+        
+        dz_sales_project = dz.CfnProject(
+            self,
+            "salesdatazoneproject",
+            domain_identifier=dz_domain.attr_id,
+            name="Sales producer project",
+        )
+        
+        dz_finance_project = dz.CfnProject(
+            self,
+            "financedatazoneproject",
+            domain_identifier=dz_domain.attr_id,
+            name="Finance consumer project",
+        )
+        
+        dz_blueprint_dwhf = dz.CfnEnvironmentBlueprintConfiguration(
+            self,
+            "dz_blueprint_dwhf",
+            domain_identifier=dz_domain.attr_id,
+            environment_blueprint_identifier="DefaultDataWarehouse",
+            manage_access_role_arn=datazoneaccessrole.role_arn,
+            provisioning_role_arn=datazoneprovisioningrole.role_arn,
+            enabled_regions=[
+                Aws.REGION
+            ]
+        )
+        
+        dz_blueprint_dl = dz.CfnEnvironmentBlueprintConfiguration(
+            self,
+            "dz_blueprint_dl",
+            domain_identifier=dz_domain.attr_id,
+            environment_blueprint_identifier="DefaultDataLake",
+            manage_access_role_arn=datazoneaccessrole.role_arn,
+            provisioning_role_arn=datazoneprovisioningrole.role_arn,
+            regional_parameters=[dz.CfnEnvironmentBlueprintConfiguration.RegionalParameterProperty(
+                parameters={
+                    "S3Location": f"s3://{S3_BUCKET_RAW.bucket_name}/datazone"
+                },
+                region=Aws.REGION
+            )],
+            enabled_regions=[
+                Aws.REGION
+            ]
 
-        secret_openlineage_url = sm.Secret(
-            self,
-            "openlineage_url",
-            description="Openlineage URL",
-            secret_name="airflow/variables/OPENLINEAGE_URL",
-            secret_string_value=SecretValue.unsafe_plain_text(f"http://{lineage_instance.instance_public_dns_name}:5000"),
-            removal_policy=RemovalPolicy.DESTROY,
         )
+        
+#   salesdatazoneenvironmentprofile:
+#     Type: AWS::DataZone::EnvironmentProfile
+#     Properties:
+#       AwsAccountId:
+#         Ref: AWS::AccountId
+#       AwsAccountRegion:
+#         Ref: AWS::Region
+#       Description: Amazon DataZone environment profile used by Sales team
+#       DomainIdentifier:
+#         Ref: datazonedomain
+#       EnvironmentBlueprintIdentifier:
+#         Fn::GetAtt:
+#           - datazoneblueprintconfiguration
+#           - EnvironmentBlueprintId
+#       Name: sales_environment_profile
+#       ProjectIdentifier:
+#         Fn::GetAtt:
+#           - salesdatazoneproject
+#           - Id
+#   financedatazoneenvironmentprofile:
+#     Type: AWS::DataZone::EnvironmentProfile
+#     Properties:
+#       AwsAccountId:
+#         Ref: AWS::AccountId
+#       AwsAccountRegion:
+#         Ref: AWS::Region
+#       Description: Amazon DataZone environment profile used by Finance team
+#       DomainIdentifier:
+#         Ref: datazonedomain
+#       EnvironmentBlueprintIdentifier:
+#         Fn::GetAtt:
+#           - datazoneblueprintconfiguration
+#           - EnvironmentBlueprintId
+#       Name: finance_environment_profile
+#       ProjectIdentifier:
+#         Fn::GetAtt:
+#           - financedatazoneproject
+#           - Id
+#   salesdatazoneenvironment:
+#     Type: AWS::DataZone::Environment
+#     Properties:
+#       Description: Amazon DataZone environment used by Sales team
+#       DomainIdentifier:
+#         Ref: datazonedomain
+#       EnvironmentProfileIdentifier:
+#         Fn::GetAtt:
+#           - salesdatazoneenvironmentprofile
+#           - Id
+#       Name: sales_dz_environment
+#       ProjectIdentifier:
+#         Fn::GetAtt:
+#           - salesdatazoneproject
+#           - Id
+#       UserParameters:
+#         - Name: consumerGlueDbName
+#           Value:
+#             Fn::Join:
+#               - ""
+#               - - sales_consumer_db_
+#                 - Ref: tickitdb
+#         - Name: producerGlueDbName
+#           Value:
+#             Fn::Join:
+#               - ""
+#               - - sales_producer_db_
+#                 - Ref: tickitdb
+#   financedatazoneenvironment:
+#     Type: AWS::DataZone::Environment
+#     Properties:
+#       Description: Amazon DataZone environment used by Finance team
+#       DomainIdentifier:
+#         Ref: datazonedomain
+#       EnvironmentProfileIdentifier:
+#         Fn::GetAtt:
+#           - financedatazoneenvironmentprofile
+#           - Id
+#       Name: finance_dz_environment
+#       ProjectIdentifier:
+#         Fn::GetAtt:
+#           - financedatazoneproject
+#           - Id
+#       UserParameters:
+#         - Name: consumerGlueDbName
+#           Value:
+#             Fn::Join:
+#               - ""
+#               - - finance_consumer_db_
+#                 - Ref: tickitdb
+#         - Name: producerGlueDbName
+#           Value:
+#             Fn::Join:
+#               - ""
+#               - - finance_producer_db_
+#                 - Ref: tickitdb
+#   datazonedatasource:
+#     Type: AWS::DataZone::DataSource
+#     Properties:
+#       Configuration:
+#         GlueRunConfiguration:
+#           RelationalFilterConfigurations:
+#             - DatabaseName:
+#                 Ref: tickitdb
+#               FilterExpressions:
+#                 - Expression: "*"
+#                   Type: INCLUDE
+#       Description: Tickit database sourced from AWS Glue Data Catalog
+#       DomainIdentifier:
+#         Ref: datazonedomain
+#       EnableSetting: ENABLED
+#       EnvironmentIdentifier:
+#         Fn::GetAtt:
+#           - salesdatazoneenvironment
+#           - Id
+#       Name: tickit_datasource
+#       ProjectIdentifier:
+#         Fn::GetAtt:
+#           - salesdatazoneproject
+#           - Id
+#       PublishOnImport: true
+#       Recommendation:
+#         EnableBusinessNameGeneration: true
+#       Schedule:
+#         Schedule: cron(0 7 * * ? *)
+#       Type: GLUE
 
-        # create Outputs
-        CfnOutput(
-            self,
-            "LineageUI",
-            value=f"http://{lineage_instance.instance_public_dns_name}:3000",
-            export_name="lineage-ui",
-        )
-        CfnOutput(
-            self,
-            "OpenlineageApi",
-            value=f"http://{lineage_instance.instance_public_dns_name}:5000",
-            export_name="openlineage-api",
-        )
+        
+        # secret_openlineage_namespace = sm.Secret(
+        #     self,
+        #     "openlineage_namespace",
+        #     description="Openlineage Namespace",
+        #     secret_name="airflow/variables/OPENLINEAGE_NAMESPACE",
+        #     secret_string_value=SecretValue.unsafe_plain_text(OPENLINEAGE_NAMESPACE),
+        #     removal_policy=RemovalPolicy.DESTROY,
+        # )
+
+        # secret_openlineage_url = sm.Secret(
+        #     self,
+        #     "openlineage_url",
+        #     description="Openlineage URL",
+        #     secret_name="airflow/variables/OPENLINEAGE_URL",
+        #     secret_string_value=SecretValue.unsafe_plain_text(f"http://{lineage_instance.instance_public_dns_name}:5000"),
+        #     removal_policy=RemovalPolicy.DESTROY,
+        # )
+
+        # # create Outputs
+        # CfnOutput(
+        #     self,
+        #     "LineageUI",
+        #     value=f"http://{lineage_instance.instance_public_dns_name}:3000",
+        #     export_name="lineage-ui",
+        # )
+        # CfnOutput(
+        #     self,
+        #     "OpenlineageApi",
+        #     value=f"http://{lineage_instance.instance_public_dns_name}:5000",
+        #     export_name="openlineage-api",
+        # )
 

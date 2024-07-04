@@ -177,11 +177,13 @@ class MWAA(Stack):
             environment_class=MWAA_ENV_CLASS,
             airflow_version=MWAA_ENV_VERSION,
             airflow_configuration_options={
+                "openlineage.transport" : '{"type": "console"}',
+                "openlineage.config_path" : " ",
+                "openlineage.disabled_for_operators" : "airflow.operators.bash.BashOperator;airflow.operators.python.PythonOperator",
                 "core.load_default_connections": False,
                 "core.load_examples": False,
                 "webserver.dag_default_view": "tree",
                 "webserver.dag_orientation": "TB",
-                "core.lazy_load_plugins": False,
                 "secrets.backend": "airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend",
                 "secrets.backend_kwargs": {
                     "connections_prefix": "airflow/connections",
@@ -189,7 +191,6 @@ class MWAA(Stack):
                 },
             },
             dag_s3_path="dags",
-            plugins_s3_path="plugins.zip",
             #plugins_s3_object_version=MWAA_PLUGINS_VERSION,
             requirements_s3_path="requirements.txt",
             #requirements_s3_object_version=MWAA_REQUIREMENTS_VERSION,

@@ -42,6 +42,7 @@ class S3(Stack):
             id: str, 
             EXTERNAL_IP: str,
             DEV_GLUE_DB: str,
+            CDK_APP_NAME: str,
             **kwargs
         ) -> None:
 
@@ -213,28 +214,28 @@ class S3(Stack):
 
         CfnOutput(
             self,
-            "RedshiftSg",
+            f"{CDK_APP_NAME}-RedshiftSg",
             value=redshift_sg.security_group_id,
-            export_name="redshift-sg",
+            export_name=f"{CDK_APP_NAME}-redshift-sg",
         )
 
         CfnOutput(
             self,
-            "CrawlerName",
+            f"{CDK_APP_NAME}-CrawlerName",
             value=crawler_raw.ref,
-            export_name="crawler-name",
+            export_name=f"{CDK_APP_NAME}-crawler-name",
         )
 
         CfnOutput(
             self,
-            "OpenlineageSg",
+            f"{CDK_APP_NAME}-OpenlineageSg",
             value=lineage_sg.security_group_id,
-            export_name="openlineage-sg",
+            export_name=f"{CDK_APP_NAME}-openlineage-sg",
         )
 
         CfnOutput(
             self,
-            "AirflowSg",
+            f"{CDK_APP_NAME}-AirflowSg",
             value=airflow_sg.security_group_id,
-            export_name="airflow-sg",
+            export_name=f"{CDK_APP_NAME}-airflow-sg",
         )
