@@ -4,8 +4,10 @@ from aws_cdk import (
     aws_ec2 as ec2,
     aws_s3 as s3,
     aws_emrserverless as emrs,
+    aws_emr as emr,
     aws_s3_deployment as s3_deploy,
     Aws,
+    Tags,
     CfnOutput,
     RemovalPolicy,
     Stack,
@@ -26,10 +28,24 @@ class EMR(Stack):
         id: str,
         VPC: ec2.Vpc,
         EMR_SG: ec2.SecurityGroup,
-        OPENLINEAGE_API: str,
         **kwargs
     ):
         super().__init__(scope, id, **kwargs)
+        
+        # create s3 bucket for emr
+        s3_bucket_emr = s3.Bucket(
+            self,
+            "s3_bucket_emr",
+            encryption=s3.BucketEncryption.S3_MANAGED,
+            public_read_access=False,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            removal_policy=RemovalPolicy.DESTROY,
+            auto_delete_objects=True,
+            versioned=True,
+            enforce_ssl=True,
+        )
+        # tag the bucket
+        Tags.of(s3_bucket_emr).add("purpose", "EMR")
         
         emrs_role = iam.Role(
             self,
@@ -67,6 +83,36 @@ class EMR(Stack):
                 resources=["*"],
             )
         )
+        
+         # Create an EMR Studio
+        emr_studio = emr.CfnStudio(
+            self,
+            "EMRStudio",
+            vpc_id = VPC.vpc_id,
+            engine_security_group_id=EMR_SG.security_group_id,
+            subnet_ids=VPC.select_subnets(
+                subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS
+            ).subnet_ids,
+            auth_mode="IAM",
+            default_s3_location=f"s3://{s3_bucket_emr.bucket_name}/emr-default",
+            name="MyEMRStudio",
+            service_role=iam.Role(
+                self,
+                "EMRStudioServiceRole",
+                assumed_by=iam.ServicePrincipal("elasticmapreduce.amazonaws.com"),
+                managed_policies=[
+                    iam.ManagedPolicy.from_aws_managed_policy_name(
+                        "AmazonEMRFullAccessPolicy_v2"
+                    ),
+                    iam.ManagedPolicy.from_aws_managed_policy_name(
+                        "AmazonS3FullAccess"
+                    )
+                ],
+            ).role_arn,
+            workspace_security_group_id=EMR_SG.security_group_id,
+        )
+
+        
         
         emrs_application = emrs.CfnApplication(
             self, 
@@ -139,4 +185,12 @@ class EMR(Stack):
             "EMR Serverless Application ID",
             value=self.EMRS_APPLICATION_ID,
             export_name="emrs-application-id",
+        )
+        
+        # Output the EMR Studio URL
+        CfnOutput(
+            self,
+            "EMRStudioURL",
+            value=f"{emr_studio.attr_url}",
+            description="EMR Studio URL",
         )

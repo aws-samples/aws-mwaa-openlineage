@@ -198,7 +198,7 @@ class MWAA(Stack):
             network_configuration=mwaa.CfnEnvironment.NetworkConfigurationProperty(
                 security_group_ids=[AIRFLOW_SG.security_group_id],
                 subnet_ids=VPC.select_subnets(
-                    subnet_type=ec2.SubnetType.PRIVATE_WITH_NAT,
+                    subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS,
                 ).subnet_ids[:2],
             ),
             execution_role_arn=airflow_role.role_arn,

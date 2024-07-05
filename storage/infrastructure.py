@@ -87,6 +87,14 @@ class S3(Stack):
         )
         # add access within group
         airflow_sg.connections.allow_internally(ec2.Port.all_traffic(), "within MWAA")
+        
+        # lineage sg
+        emr_sg = ec2.SecurityGroup(
+            self, 
+            "emr_sg", 
+            vpc=vpc, 
+            description="EMR sg"
+        )
 
         # Open port 22 for SSH
         for port in [22, 3000, 5000]:
@@ -204,6 +212,7 @@ class S3(Stack):
         # to share ...
         self.VPC = vpc
         self.S3_BUCKET_RAW = s3_bucket_raw
+        self.S3_BUCKET_LOGS = s3_bucket_logs
 
         # share security groups
         self.REDSHIFT_SG = redshift_sg

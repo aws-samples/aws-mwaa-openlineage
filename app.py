@@ -10,6 +10,7 @@ from storage.infrastructure import S3
 from governance.infrastructure import DataZone
 from orchestration.infrastructure import MWAA
 from consume.infrastructure import Redshift
+from transform.infrastructure import EMR
 
 app = App()
 #This enables security validation through cdk_nag
@@ -57,6 +58,14 @@ mwaa = MWAA(
     env=constants.DEV_ENV,
 )
 mwaa.add_dependency(redshift)
+
+emr = EMR(
+    app,
+    "emr",
+    VPC=s3.VPC,
+    EMR_SG=s3.AIRFLOW_SG,
+    env=constants.DEV_ENV,
+)
 
 
 app.synth()
